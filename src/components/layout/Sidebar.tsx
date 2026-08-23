@@ -56,8 +56,8 @@ export function Sidebar() {
       icon: HelpCircle
     },
     {
-      label: 'Connected AI & MCP',
-      href: '/settings/ai-clients',
+      label: 'Connect AI Clients (MCP)',
+      href: '/connect-ai',
       icon: Cpu
     }
   ];
@@ -138,7 +138,7 @@ export function Sidebar() {
             13 tools live on <code className="font-mono text-[9px] bg-white px-1 py-0.5 border border-[#E5E5E5] rounded">/api/mcp</code>
           </p>
           <Link
-            href="/settings/ai-clients"
+            href="/connect-ai"
             className="text-[11px] text-[#2563EB] font-medium hover:underline flex items-center space-x-1 mt-2"
           >
             <span>Connect AI Agent</span>

@@ -15,7 +15,8 @@ import {
   LogOut, 
   Layers, 
   Activity, 
-  Code 
+  Code,
+  Cpu 
 } from 'lucide-react';
 
 export function Navbar() {
@@ -206,11 +207,19 @@ export function Navbar() {
 
                 <div className="py-1">
                   <Link
+                    href="/connect-ai"
+                    onClick={() => setIsUserDropdownOpen(false)}
+                    className="px-3 py-2 flex items-center space-x-2 text-[#0A0A0A] hover:bg-[#F7F7F5] transition-colors"
+                  >
+                    <Cpu className="w-3.5 h-3.5 text-[#2563EB]" />
+                    <span>Connect AI Clients (MCP)</span>
+                  </Link>
+                  <Link
                     href="/settings/developer"
                     onClick={() => setIsUserDropdownOpen(false)}
                     className="px-3 py-2 flex items-center space-x-2 text-[#0A0A0A] hover:bg-[#F7F7F5] transition-colors"
                   >
-                    <Code className="w-3.5 h-3.5 text-[#2563EB]" />
+                    <Code className="w-3.5 h-3.5 text-[#737373]" />
                     <span>Developer Sandbox</span>
                   </Link>
                   <Link
