@@ -20,12 +20,15 @@ import {
   AlertCircle,
   HelpCircle,
   FileCode2,
-  Workflow
+  Workflow,
+  Lock,
+  ArrowRight,
+  UserCheck
 } from 'lucide-react';
 
 export default function ConnectAiPage() {
-  const { selectedCompany } = useWorkspace();
-  const [activeTab, setActiveTab] = useState<'claude' | 'cursor' | 'windsurf' | 'sdk'>('claude');
+  const { selectedCompany, currentWorkspace, profile } = useWorkspace();
+  const [activeTab, setActiveTab] = useState<'claude-oauth' | 'claude-desktop' | 'cursor' | 'sdk'>('claude-oauth');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   
   // Interactive Tester State
@@ -74,7 +77,7 @@ export default function ConnectAiPage() {
   };
 
   // Configurations
-  const claudeConfigJson = JSON.stringify({
+  const claudeDesktopConfigJson = JSON.stringify({
     mcpServers: {
       "future-mca": {
         url: mcpUrl
@@ -90,14 +93,6 @@ export default function ConnectAiPage() {
     }
   }, null, 2);
 
-  const windsurfConfigJson = JSON.stringify({
-    mcpServers: {
-      "future-mca": {
-        serverUrl: mcpUrl
-      }
-    }
-  }, null, 2);
-
   const pythonSdkCode = `from mcp import ClientSession
 from mcp.client.sse import sse_client
 
@@ -105,10 +100,6 @@ async def main():
     async with sse_client("${mcpUrl}") as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
-            
-            # List all 13 government compliance tools
-            tools = await session.list_tools()
-            print("Available Tools:", [t.name for t in tools.tools])
             
             # Query active company master data
             result = await session.call_tool("get_company_profile", {
@@ -119,22 +110,6 @@ async def main():
 if __name__ == "__main__":
     import asyncio
     asyncio.run(main())`;
-
-  const nodeSdkCode = `import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
-
-const transport = new SSEClientTransport(new URL("${mcpUrl}"));
-const client = new Client({ name: "future-mca-client", version: "1.0.0" }, { capabilities: {} });
-
-await client.connect(transport);
-
-// Query compliance status via MCP
-const response = await client.callTool({
-  name: "get_compliance_status",
-  arguments: { cin: "${selectedCompany?.cin || 'U72900KA2021PTC145892'}" }
-});
-
-console.log(response.content[0].text);`;
 
   const handleToolSelect = (toolName: string) => {
     setSelectedTool(toolName);
@@ -264,7 +239,7 @@ console.log(response.content[0].text);`;
               <div className="text-xs font-semibold text-black flex items-center space-x-2">
                 <span>Remote MCP Server Endpoint</span>
                 <span className="text-[10px] font-mono bg-[#EFF6FF] text-[#2563EB] px-2 py-0.5 rounded font-bold">
-                  JSON-RPC 2.0 / Streamable HTTP
+                  OAuth 2.1 & Streamable JSON-RPC
                 </span>
               </div>
               <p className="text-xs text-[#525252] mt-0.5 font-mono select-all text-[#2563EB]">
@@ -285,10 +260,10 @@ console.log(response.content[0].text);`;
           <div className="space-y-4">
             <div className="flex items-center space-x-1 border-b border-[#E5E5E5] pb-2 text-xs overflow-x-auto">
               {[
-                { id: 'claude', label: 'Claude Desktop' },
+                { id: 'claude-oauth', label: 'Claude Web / Connector (OAuth 2.1)' },
+                { id: 'claude-desktop', label: 'Claude Desktop App' },
                 { id: 'cursor', label: 'Cursor IDE' },
-                { id: 'windsurf', label: 'Windsurf / Cline' },
-                { id: 'sdk', label: 'Custom SDK (Python / Node)' }
+                { id: 'sdk', label: 'Custom Python / Node SDK' }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -304,15 +279,75 @@ console.log(response.content[0].text);`;
               ))}
             </div>
 
-            {/* Tab 1: Claude Desktop */}
-            {activeTab === 'claude' && (
+            {/* Tab 1: Claude Web / Connector with OAuth 2.1 (RECOMMENDED) */}
+            {activeTab === 'claude-oauth' && (
+              <div className="space-y-4 animate-in fade-in duration-150">
+                <div className="p-4 bg-[#EFF6FF] border border-[#2563EB]/20 rounded-xl space-y-2">
+                  <div className="flex items-center space-x-2 text-xs font-bold text-[#2563EB]">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Recommended: Automated Multi-Tenant Workspace Isolation</span>
+                  </div>
+                  <p className="text-xs text-[#0A0A0A] leading-relaxed">
+                    When connecting Claude via OAuth, Claude opens a secure login popup where you select your workspace (e.g. <em>Ziggers Startup</em> or <em>CA Firm</em>). Claude will only access data belonging to that specific workspace.
+                  </p>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div className="font-bold text-black uppercase tracking-wider text-[11px]">
+                    Step-by-Step Connection Guide in Claude:
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="p-3.5 bg-[#F7F7F5] border border-[#E5E5E5] rounded-xl space-y-1.5">
+                      <div className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center font-bold text-[10px]">1</div>
+                      <div className="font-bold text-black">Add Connector in Claude</div>
+                      <div className="text-[11px] text-[#525252]">
+                        Paste Server URL:<br />
+                        <code className="font-mono text-[10px] bg-white px-1 py-0.5 border border-[#E5E5E5] rounded text-[#2563EB]">{mcpUrl}</code>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 bg-[#F7F7F5] border border-[#E5E5E5] rounded-xl space-y-1.5">
+                      <div className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center font-bold text-[10px]">2</div>
+                      <div className="font-bold text-black">Select OAuth Options</div>
+                      <div className="text-[11px] text-[#525252]">
+                        • Auth: <strong>Required when server asks</strong> (or Always)<br />
+                        • OAuth Client: <strong>Use Anthropic's hosted client metadata</strong>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 bg-[#F7F7F5] border border-[#E5E5E5] rounded-xl space-y-1.5">
+                      <div className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center font-bold text-[10px]">3</div>
+                      <div className="font-bold text-black">Sign In & Authorize</div>
+                      <div className="text-[11px] text-[#525252]">
+                        Claude opens popup &rarr; select your Workspace &rarr; Click <strong>Authorize Claude</strong> &rarr; Complete!
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex items-center space-x-2">
+                    <a
+                      href="/oauth/authorize"
+                      target="_blank"
+                      className="px-3.5 py-1.5 bg-white hover:bg-[#F7F7F5] border border-[#E5E5E5] text-[#0A0A0A] rounded font-medium text-xs flex items-center space-x-1.5"
+                    >
+                      <ExternalLink className="w-3 h-3 text-[#2563EB]" />
+                      <span>Preview OAuth Consent Screen</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 2: Claude Desktop */}
+            {activeTab === 'claude-desktop' && (
               <div className="space-y-3 animate-in fade-in duration-150">
                 <div className="flex items-center justify-between">
                   <div className="text-xs text-[#525252]">
                     Add to your <code className="font-mono text-black font-semibold">claude_desktop_config.json</code>:
                   </div>
                   <button
-                    onClick={() => handleCopy(claudeConfigJson, 'claude')}
+                    onClick={() => handleCopy(claudeDesktopConfigJson, 'claude')}
                     className="text-xs text-[#2563EB] hover:underline flex items-center space-x-1"
                   >
                     {copiedKey === 'claude' ? <Check className="w-3.5 h-3.5 text-[#16A34A]" /> : <Copy className="w-3.5 h-3.5" />}
@@ -320,7 +355,7 @@ console.log(response.content[0].text);`;
                   </button>
                 </div>
                 <pre className="p-4 bg-[#0A0A0A] text-[#EFF6FF] rounded-lg font-mono text-xs overflow-x-auto leading-relaxed">
-                  {claudeConfigJson}
+                  {claudeDesktopConfigJson}
                 </pre>
                 <div className="text-[11px] text-[#737373] space-y-1">
                   <div><strong>macOS Location:</strong> <code className="font-mono bg-[#F7F7F5] px-1 py-0.5 border border-[#E5E5E5] rounded">~/Library/Application Support/Claude/claude_desktop_config.json</code></div>
@@ -329,7 +364,7 @@ console.log(response.content[0].text);`;
               </div>
             )}
 
-            {/* Tab 2: Cursor IDE */}
+            {/* Tab 3: Cursor IDE */}
             {activeTab === 'cursor' && (
               <div className="space-y-3 animate-in fade-in duration-150">
                 <div className="flex items-center justify-between">
@@ -353,27 +388,6 @@ console.log(response.content[0].text);`;
               </div>
             )}
 
-            {/* Tab 3: Windsurf / Cline */}
-            {activeTab === 'windsurf' && (
-              <div className="space-y-3 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs text-[#525252]">
-                    Configuration for Windsurf Cascade or Cline Extension:
-                  </div>
-                  <button
-                    onClick={() => handleCopy(windsurfConfigJson, 'windsurf')}
-                    className="text-xs text-[#2563EB] hover:underline flex items-center space-x-1"
-                  >
-                    {copiedKey === 'windsurf' ? <Check className="w-3.5 h-3.5 text-[#16A34A]" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedKey === 'windsurf' ? 'Copied' : 'Copy JSON'}</span>
-                  </button>
-                </div>
-                <pre className="p-4 bg-[#0A0A0A] text-[#EFF6FF] rounded-lg font-mono text-xs overflow-x-auto leading-relaxed">
-                  {windsurfConfigJson}
-                </pre>
-              </div>
-            )}
-
             {/* Tab 4: Custom Python & Node SDK */}
             {activeTab === 'sdk' && (
               <div className="space-y-4 animate-in fade-in duration-150">
@@ -390,22 +404,6 @@ console.log(response.content[0].text);`;
                   </div>
                   <pre className="p-3 bg-[#0A0A0A] text-[#EFF6FF] rounded-lg font-mono text-[11px] overflow-x-auto leading-relaxed">
                     {pythonSdkCode}
-                  </pre>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-black">TypeScript Client (@modelcontextprotocol/sdk)</span>
-                    <button
-                      onClick={() => handleCopy(nodeSdkCode, 'ts')}
-                      className="text-xs text-[#2563EB] hover:underline flex items-center space-x-1"
-                    >
-                      {copiedKey === 'ts' ? <Check className="w-3.5 h-3.5 text-[#16A34A]" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedKey === 'ts' ? 'Copied TS' : 'Copy Code'}</span>
-                    </button>
-                  </div>
-                  <pre className="p-3 bg-[#0A0A0A] text-[#EFF6FF] rounded-lg font-mono text-[11px] overflow-x-auto leading-relaxed">
-                    {nodeSdkCode}
                   </pre>
                 </div>
               </div>

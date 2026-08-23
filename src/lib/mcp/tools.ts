@@ -160,11 +160,23 @@ export const MCP_TOOLS: ToolDefinition[] = [
   }
 ];
 
-export async function executeMcpTool(name: string, args: any = {}): Promise<any> {
+export async function executeMcpTool(
+  name: string, 
+  args: any = {}, 
+  context: { workspaceId?: string; userId?: string } = {}
+): Promise<any> {
   switch (name) {
     case 'search_company': {
-      const results = await CompanyService.searchCompanies(args.query || '');
-      return { companies: results, total: results.length };
+      const companies = context.workspaceId 
+        ? await CompanyService.listCompanies(context.workspaceId)
+        : await CompanyService.searchCompanies(args.query || '');
+
+      const q = (args.query || '').toLowerCase().trim();
+      const results = q 
+        ? companies.filter(c => c.name.toLowerCase().includes(q) || c.cin.toLowerCase().includes(q))
+        : companies;
+
+      return { companies: results, total: results.length, workspace_id: context.workspaceId || 'universal' };
     }
     case 'get_company_profile': {
       const company = await CompanyService.getCompanyByCin(args.cin);

@@ -86,8 +86,27 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
       }
 
+      // Extract OAuth Bearer token if provided
+      let workspaceId: string | undefined = undefined;
+      let userId: string | undefined = undefined;
+      const authHeader = request.headers.get('authorization') || '';
+
+      if (authHeader.startsWith('Bearer ')) {
+        const token = authHeader.replace('Bearer ', '').trim();
+        if (token.startsWith('mca_tok_')) {
+          try {
+            const rawPayload = Buffer.from(token.replace('mca_tok_', ''), 'base64url').toString('utf-8');
+            const parsed = JSON.parse(rawPayload);
+            workspaceId = parsed.ws;
+            userId = parsed.u;
+          } catch {
+            // fallback token parse
+          }
+        }
+      }
+
       try {
-        const output = await executeMcpTool(toolName, toolArguments);
+        const output = await executeMcpTool(toolName, toolArguments, { workspaceId, userId });
         return NextResponse.json({
           jsonrpc: '2.0',
           id,
