@@ -16,8 +16,14 @@ export class ComplianceService {
       .select('*')
       .order('due_date', { ascending: true });
 
-    if (filter?.companyId) {
-      query = query.eq('company_id', filter.companyId);
+    let targetCompanyId = filter?.companyId;
+    if (targetCompanyId && targetCompanyId.length === 21) {
+      const comp = await CompanyService.getCompanyByCin(targetCompanyId).catch(() => null);
+      if (comp) targetCompanyId = comp.id;
+    }
+
+    if (targetCompanyId) {
+      query = query.eq('company_id', targetCompanyId);
     }
     if (filter?.urgency && filter.urgency !== 'all') {
       query = query.eq('urgency', filter.urgency);
