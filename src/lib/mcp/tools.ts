@@ -179,18 +179,21 @@ export async function executeMcpTool(
       return { companies: results, total: results.length, workspace_id: context.workspaceId || 'universal' };
     }
     case 'get_company_profile': {
-      const company = await CompanyService.getCompanyByCin(args.cin);
-      if (!company) return { error: `Company with CIN/ID "${args.cin}" not found.` };
+      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
+      const company = await CompanyService.getCompanyByCin(target);
+      if (!company) return { error: `Company "${target}" not found in database.` };
       const directors = await CompanyService.getCompanyDirectors(company.id);
       return { company: { ...company, directors } };
     }
     case 'get_company_directors': {
-      const directors = await CompanyService.getCompanyDirectors(args.cin);
+      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
+      const directors = await CompanyService.getCompanyDirectors(target);
       return { directors, total: directors.length };
     }
     case 'get_compliance_status': {
+      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
       const deadlines = await ComplianceService.listCompliance({
-        companyId: args.cin,
+        companyId: target,
         urgency: args.urgency
       });
       const criticalCount = deadlines.filter(d => d.urgency === 'critical').length;
@@ -206,12 +209,14 @@ export async function executeMcpTool(
       };
     }
     case 'get_upcoming_deadlines': {
-      const deadlines = await ComplianceService.getUpcomingDeadlines(args.cin);
+      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
+      const deadlines = await ComplianceService.getUpcomingDeadlines(target);
       return { deadlines, total: deadlines.length };
     }
     case 'get_next_required_action': {
-      const company = await CompanyService.getCompanyByCin(args.cin);
-      const critical = await ComplianceService.getCriticalActions(args.cin);
+      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
+      const company = await CompanyService.getCompanyByCin(target);
+      const critical = await ComplianceService.getCriticalActions(target);
       if (critical.length > 0) {
         return {
           priority: 'CRITICAL',

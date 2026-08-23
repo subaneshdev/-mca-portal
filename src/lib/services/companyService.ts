@@ -64,21 +64,37 @@ export class CompanyService {
    * Retrieve a specific company by CIN or ID with its Board of Directors.
    * Throws structured error if database query fails.
    */
-  static async getCompanyByCin(cinOrId: string): Promise<Company | null> {
-    if (!cinOrId) return null;
-    const queryTerm = cinOrId.trim();
+  static async getCompanyByCin(cinOrIdOrName: string): Promise<Company | null> {
+    if (!cinOrIdOrName) return null;
+    const queryTerm = cinOrIdOrName.trim();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(queryTerm);
 
     let query = supabase.from('companies').select('*');
-    if (queryTerm.length === 21) {
-      query = query.eq('cin', queryTerm);
+    if (isUuid) {
+      query = query.eq('id', queryTerm);
+    } else if (queryTerm.length === 21) {
+      query = query.ilike('cin', queryTerm);
     } else {
-      query = query.or(`cin.eq.${queryTerm},id.eq.${queryTerm}`);
+      // Company name or partial search
+      query = query.ilike('name', `%${queryTerm}%`);
     }
 
     const { data, error } = await query.limit(1).maybeSingle();
 
     if (error) {
-      throw new Error(`Database error fetching company [${queryTerm}]: ${error.message}`);
+      // If ilike returned multiple, fetch first
+      const { data: list } = await supabase
+        .from('companies')
+        .select('*')
+        .ilike('name', `%${queryTerm}%`)
+        .limit(1);
+
+      if (list && list.length > 0) {
+        const item = list[0];
+        const directors = await this.getCompanyDirectors(item.id).catch(() => []);
+        return { ...item, directors };
+      }
+      return null;
     }
 
     if (!data) {
@@ -118,17 +134,16 @@ export class CompanyService {
    * Retrieve directors for a company from Supabase.
    * Throws structured error if database query fails.
    */
-  static async getCompanyDirectors(companyIdOrCin: string): Promise<Director[]> {
-    if (!companyIdOrCin) return [];
+  static async getCompanyDirectors(companyIdOrCinOrName: string): Promise<Director[]> {
+    if (!companyIdOrCinOrName) return [];
+    const queryTerm = companyIdOrCinOrName.trim();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(queryTerm);
 
-    let companyId = companyIdOrCin;
-    if (companyIdOrCin.length === 21) {
-      const { data: comp } = await supabase
-        .from('companies')
-        .select('id')
-        .eq('cin', companyIdOrCin)
-        .maybeSingle();
-      if (comp) companyId = comp.id;
+    let companyId = queryTerm;
+    if (!isUuid) {
+      const comp = await this.getCompanyByCin(queryTerm);
+      if (!comp) return [];
+      companyId = comp.id;
     }
 
     const { data, error } = await supabase
@@ -138,7 +153,7 @@ export class CompanyService {
       .order('appointment_date', { ascending: false });
 
     if (error) {
-      throw new Error(`Database error fetching directors: ${error.message}`);
+      return [];
     }
 
     return data || [];
