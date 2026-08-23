@@ -31,6 +31,7 @@ export interface Company {
   email: string;
   pan?: string;
   gst?: string;
+  workspace_id?: string | null;
   created_at?: string;
   directors?: Director[];
   compliance_count?: {
@@ -62,6 +63,7 @@ export interface ComplianceDeadline {
   id: string;
   company_id: string;
   company_name?: string;
+  workspace_id?: string | null;
   title: string;
   form_code: string;
   due_date: string;
@@ -77,6 +79,7 @@ export interface Filing {
   id: string;
   company_id: string;
   company_name?: string;
+  workspace_id?: string | null;
   form_code: string;
   form_title: string;
   category: string;
@@ -94,6 +97,7 @@ export interface Application {
   id: string;
   company_id?: string | null;
   company_name?: string;
+  workspace_id?: string | null;
   application_no: string;
   title: string;
   type: 'INCORPORATION' | 'DIRECTOR_CHANGE' | 'ADDRESS_CHANGE' | 'NAME_RESERVATION' | 'CHARGE_REGISTRATION' | 'ANNUAL_FILING';

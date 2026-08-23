@@ -13,12 +13,7 @@ export class CompanyService {
       .order('created_at', { ascending: false });
 
     if (workspaceId) {
-      // In case workspace_id column exists or is used for isolation
-      try {
-        query = query.eq('workspace_id', workspaceId);
-      } catch {
-        // ignore if not present
-      }
+      query = query.or(`workspace_id.eq.${workspaceId},workspace_id.is.null`);
     }
 
     const { data, error } = await query;
@@ -185,7 +180,8 @@ export class CompanyService {
       registered_office: companyData.registered_office || 'Brigade Road, Bangalore, Karnataka - 560025',
       email: companyData.email || 'contact@venture.io',
       pan: companyData.pan || 'AABCV9999K',
-      gst: companyData.gst || '29AABCV9999K1Z5'
+      gst: companyData.gst || '29AABCV9999K1Z5',
+      workspace_id: companyData.workspace_id || null
     };
 
     const { data, error } = await supabase
@@ -408,6 +404,9 @@ export class CompanyService {
     }
 
     const { directors, ...companyData } = target;
-    return await this.createCompany(companyData, directors as Partial<Director>[]);
+    return await this.createCompany(
+      { ...companyData, workspace_id: workspaceId || null },
+      directors as Partial<Director>[]
+    );
   }
 }
