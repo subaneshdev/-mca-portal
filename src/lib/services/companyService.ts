@@ -79,27 +79,13 @@ export class CompanyService {
       query = query.ilike('name', `%${queryTerm}%`);
     }
 
-    const { data, error } = await query.limit(1).maybeSingle();
+    const { data: list, error } = await query.limit(1);
 
-    if (error) {
-      // If ilike returned multiple, fetch first
-      const { data: list } = await supabase
-        .from('companies')
-        .select('*')
-        .ilike('name', `%${queryTerm}%`)
-        .limit(1);
-
-      if (list && list.length > 0) {
-        const item = list[0];
-        const directors = await this.getCompanyDirectors(item.id).catch(() => []);
-        return { ...item, directors };
-      }
+    if (error || !list || list.length === 0) {
       return null;
     }
 
-    if (!data) {
-      return null;
-    }
+    const data = list[0];
 
     const directors = await this.getCompanyDirectors(data.id).catch(() => []);
 
