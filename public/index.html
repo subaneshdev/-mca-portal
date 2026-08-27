@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Future MCA — Corporate Compliance for Humans and AI</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Primary Display Font: BubbledotICG-FinePos -->
+  <link
+    href="https://db.onlinewebfonts.com/c/8cb707a9b8a73f8a7403336b861c3074?family=BubbledotICG-FinePos"
+    rel="stylesheet"
+  />
+
+  <!-- Font Awesome 6.5.2 -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- Full-Viewport Cover Video -->
+  <div class="bg">
+    <video class="bg-video" autoplay muted loop playsinline>
+      <source
+        src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260809_012548_ef22562c-c0ae-4816-ad9d-f8922af4e6a7.mp4"
+        type="video/mp4"
+      />
+    </video>
+    <div class="bg-overlay"></div>
+  </div>
+
+  <!-- Single-Viewport Page Layout -->
+  <div class="page">
+    
+    <!-- 1. Header -->
+    <header class="header">
+      <div class="header-container">
+        
+        <!-- Circular Logo -->
+        <a href="#" class="logo-btn" aria-label="Future MCA Home">
+          <img src="assets/logo.webp" alt="Future MCA" class="logo-img" />
+        </a>
+
+        <!-- Desktop Navigation Pill -->
+        <nav class="nav-pill" aria-label="Main Navigation">
+          <a href="#home" class="nav-link active" data-nav="home">
+            <span>Home</span>
+            <div class="dot-indicator">
+              <span></span><span></span><span></span>
+            </div>
+          </a>
+          <a href="#product" class="nav-link" data-nav="product">
+            <span>Product</span>
+            <div class="dot-indicator">
+              <span></span><span></span><span></span>
+            </div>
+          </a>
+          <a href="#mcp" class="nav-link" data-nav="mcp">
+            <span>MCP</span>
+            <div class="dot-indicator">
+              <span></span><span></span><span></span>
+            </div>
+          </a>
+          <a href="#professionals" class="nav-link" data-nav="professionals">
+            <span>For Professionals</span>
+            <div class="dot-indicator">
+              <span></span><span></span><span></span>
+            </div>
+          </a>
+        </nav>
+
+        <!-- Sign In Button -->
+        <a href="/auth/login" class="signin-pill">
+          Sign In
+        </a>
+
+        <!-- Mobile Hamburger Button -->
+        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle Menu" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+      </div>
+    </header>
+
+    <!-- 2. Hero Region -->
+    <main class="hero">
+      
+      <!-- Trust / Context Pill -->
+      <div class="trust-pill anim" style="--d: 0.05s;">
+        <div class="avatar-stack">
+          <div class="avatar-ring" title="Founders & Business Owners">
+            <div class="avatar-inner">
+              <i class="fa-solid fa-user"></i>
+            </div>
+          </div>
+          <div class="avatar-ring" title="CA / CS Professionals">
+            <div class="avatar-inner">
+              <i class="fa-solid fa-user-tie"></i>
+            </div>
+          </div>
+          <div class="avatar-ring" title="AI Agents via MCP">
+            <div class="avatar-inner">
+              <i class="fa-solid fa-bolt"></i>
+            </div>
+          </div>
+        </div>
+        <span class="trust-text">One workspace. Humans and AI.</span>
+      </div>
+
+      <!-- Headline -->
+      <h1 class="headline">
+        <span class="headline-line headline-line-1">Your Company.</span>
+        <span class="headline-line headline-line-2">Understood.</span>
+      </h1>
+
+      <!-- Subhead -->
+      <p class="subhead anim" style="--d: 0.45s;">
+        Future MCA turns complex company compliance into simple conversations, guided workflows and secure context that AI agents can understand.
+      </p>
+
+      <!-- CTA Group -->
+      <div class="cta-group anim" style="--d: 0.60s;">
+        <a href="/onboarding" class="btn-primary">
+          Get Started
+        </a>
+        <button type="button" class="btn-secondary" id="exploreMcpBtn">
+          Explore MCP
+        </button>
+      </div>
+
+    </main>
+
+    <!-- 3. Bottom Product Intelligence Footer -->
+    <footer class="footer-intel anim" style="--d: 0.75s;">
+      
+      <!-- Item 1: Start a Company -->
+      <a href="/chat?query=I+want+to+start+a+company" class="intel-item-link" title="Launch Guided Incorporation">
+        <div class="intel-item">
+          <span class="intel-symbol">+</span>
+          <div class="intel-title">Start a Company &rarr;</div>
+          <div class="intel-label">Guided from idea to incorporation</div>
+        </div>
+      </a>
+
+      <!-- Item 2: Know What’s Due -->
+      <a href="/compliance" class="intel-item-link" title="View Compliance Deadlines & Schedules">
+        <div class="intel-item">
+          <span class="intel-symbol">!</span>
+          <div class="intel-title">Know What’s Due &rarr;</div>
+          <div class="intel-label">Compliance explained in plain language</div>
+        </div>
+      </a>
+
+      <!-- Item 3: File With Confidence -->
+      <a href="/filings" class="intel-item-link" title="Open e-Forms & Filing Hub">
+        <div class="intel-item">
+          <span class="intel-symbol">&gt;</span>
+          <div class="intel-title">File With Confidence &rarr;</div>
+          <div class="intel-label">Forms, documents and validation in one flow</div>
+        </div>
+      </a>
+
+      <!-- Item 4: Connect Your AI -->
+      <a href="/connect-ai" class="intel-item-link" title="Connect Claude, ChatGPT, Cursor via MCP">
+        <div class="intel-item" id="footerMcpTrigger">
+          <span class="intel-symbol">*</span>
+          <div class="intel-title">Connect Your AI &rarr;</div>
+          <div class="intel-label">Secure company context through MCP</div>
+        </div>
+      </a>
+
+    </footer>
+
+  </div>
+
+  <!-- Mobile Navigation Overlay -->
+  <div class="mobile-overlay" id="mobileOverlay">
+    <div class="mobile-sheet">
+      <a href="#home" class="mobile-nav-link active" data-nav="home">Home</a>
+      <a href="#product" class="mobile-nav-link" data-nav="product">Product</a>
+      <a href="#mcp" class="mobile-nav-link" data-nav="mcp">MCP</a>
+      <a href="#professionals" class="mobile-nav-link" data-nav="professionals">For Professionals</a>
+      <a href="/auth/login" class="mobile-signin-btn">Sign In</a>
+    </div>
+  </div>
+
+  <!-- MCP Explainer Modal -->
+  <div class="modal-overlay" id="mcpModal">
+    <div class="modal-card">
+      <button class="modal-close" id="closeMcpModal" aria-label="Close Modal">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="modal-tag">Model Context Protocol (MCP)</div>
+      <h2 class="modal-title">Your company, available when you need it.</h2>
+      <p class="modal-desc">
+        Future MCA gives your authorised AI assistant structured access to the company context you choose to share.
+      </p>
+
+      <!-- Architecture Visual Flow -->
+      <div class="flow-diagram">
+        <div class="flow-step">
+          <span>Future MCA Workspace</span>
+          <strong>Single Source of Truth</strong>
+        </div>
+        <div class="flow-arrow">&darr; Secure Authentication & Scopes</div>
+        <div class="flow-step">
+          <span>Model Context Protocol (MCP)</span>
+          <strong>Standardised Remote Endpoint</strong>
+        </div>
+        <div class="flow-arrow">&darr; Connected AI Clients</div>
+        <div class="flow-step">
+          <span>Claude &bull; ChatGPT &bull; Cursor</span>
+          <strong>Authorised Actions & Queries</strong>
+        </div>
+      </div>
+
+      <div class="code-box">
+        <span>Endpoint: https://mca-portal-ten.vercel.app/api/mcp</span>
+        <span style="color: #4ade80; font-size: 11px;">JSON-RPC 2.0</span>
+      </div>
+
+      <a href="/connect-ai" class="btn-modal-action">
+        Open AI Connection Centre &rarr;
+      </a>
+    </div>
+  </div>
+
+  <!-- Product Overview Modal -->
+  <div class="modal-overlay" id="productModal">
+    <div class="modal-card">
+      <button class="modal-close" id="closeProductModal" aria-label="Close Modal">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="modal-tag">Dual Workspace Architecture</div>
+      <h2 class="modal-title">Designed for Founders. Built for Professionals.</h2>
+      <p class="modal-desc">
+        One unified data layer powering two distinct experiences tailored to how you work.
+      </p>
+
+      <div class="flow-diagram">
+        <div class="flow-step">
+          <span>Founder & Business Owner</span>
+          <strong>Conversational Dashboard</strong>
+        </div>
+        <div class="flow-step">
+          <span>CA / CS Professional</span>
+          <strong>Operational Forms Matrix</strong>
+        </div>
+        <div class="flow-step">
+          <span>Autonomous AI Agents</span>
+          <strong>Scoped MCP API</strong>
+        </div>
+      </div>
+
+      <a href="/onboarding" class="btn-modal-action">
+        Explore Workspaces &rarr;
+      </a>
+    </div>
+  </div>
+
+  <!-- For Professionals Modal -->
+  <div class="modal-overlay" id="professionalsModal">
+    <div class="modal-card">
+      <button class="modal-close" id="closeProfessionalsModal" aria-label="Close Modal">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="modal-tag">Professional Practice Suite</div>
+      <h2 class="modal-title">Speed, Density and Control for CA/CS Teams.</h2>
+      <p class="modal-desc">
+        Manage multi-company portfolios, statutory cutoffs, e-Form pre-scrutiny, and SRN scrutiny without hunting through tabs.
+      </p>
+
+      <div class="flow-diagram">
+        <div class="flow-step">
+          <span>Multi-Company Management</span>
+          <strong>Filterable Risk Matrix</strong>
+        </div>
+        <div class="flow-step">
+          <span>Direct e-Forms Launch</span>
+          <strong>DIR-12, AOC-4, MGT-7, INC-22</strong>
+        </div>
+        <div class="flow-step">
+          <span>Diagnostic Engine</span>
+          <strong>Instant MCA V3 Error Resolution</strong>
+        </div>
+      </div>
+
+      <a href="/overview" class="btn-modal-action">
+        Open Professional Operations UI &rarr;
+      </a>
+    </div>
+  </div>
+
+  <!-- Vanilla JS -->
+  <script src="main.js"></script>
+</body>
+</html>

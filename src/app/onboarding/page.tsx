@@ -13,7 +13,9 @@ import {
   Plus, 
   Zap, 
   Layers,
-  ArrowLeft
+  ArrowLeft,
+  MessageSquare,
+  Briefcase
 } from 'lucide-react';
 
 export default function OnboardingPage() {
@@ -31,17 +33,22 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [selectedPersona, setSelectedPersona] = useState<WorkspaceRole>(role || 'founder');
   const [workspaceName, setWorkspaceName] = useState(
-    role === 'founder' ? 'My Startup Workspace' : 'CA & Associates Practice'
+    role === 'founder' ? 'My Business Workspace' : 'CA & Associates Practice'
   );
   const [companyName, setCompanyName] = useState('');
   const [companyCin, setCompanyCin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Determine destination based on selected persona
+  const getDestinationUrl = (targetPersona: WorkspaceRole) => {
+    return targetPersona === 'founder' ? '/chat' : '/overview';
+  };
+
   // Step 1: Confirm Persona
   const handlePersonaNext = async () => {
     await setRole(selectedPersona);
     setWorkspaceName(
-      selectedPersona === 'founder' ? 'Ziggers Startup Workspace' : 'Subanesh & Associates'
+      selectedPersona === 'founder' ? 'Ziggers Technologies Workspace' : 'Subanesh & Associates'
     );
     setStep(2);
   };
@@ -66,9 +73,9 @@ export default function OnboardingPage() {
     setIsLoading(true);
     try {
       await loadDemoCompany(preset);
-      router.push('/overview');
+      router.push(getDestinationUrl(selectedPersona));
     } catch (err) {
-      router.push('/overview');
+      router.push(getDestinationUrl(selectedPersona));
     } finally {
       setIsLoading(false);
     }
@@ -84,24 +91,24 @@ export default function OnboardingPage() {
         name: companyName.trim(),
         cin: companyCin.trim().toUpperCase() || undefined
       });
-      router.push('/overview');
+      router.push(getDestinationUrl(selectedPersona));
     } catch {
-      router.push('/overview');
+      router.push(getDestinationUrl(selectedPersona));
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F7F5] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
       
       {/* Header */}
       <div className="sm:mx-auto sm:w-full sm:max-w-xl text-center space-y-2">
         <div className="flex items-center justify-center space-x-2">
-          <div className="w-8 h-8 rounded bg-black text-white flex items-center justify-center font-bold text-xs">
+          <div className="w-8 h-8 rounded-lg bg-[#0B2545] text-white flex items-center justify-center font-black text-xs">
             MCA
           </div>
-          <span className="text-lg font-bold tracking-tight text-black">Future MCA Onboarding</span>
+          <span className="text-xl font-bold tracking-tight text-[#0B2545]">Future MCA Onboarding</span>
         </div>
 
         {/* Progression Dots */}
@@ -110,7 +117,7 @@ export default function OnboardingPage() {
             <div
               key={s}
               className={`h-1.5 rounded-full transition-all ${
-                step === s ? 'w-8 bg-[#2563EB]' : step > s ? 'w-4 bg-black' : 'w-4 bg-[#E5E5E5]'
+                step === s ? 'w-8 bg-[#0066CC]' : step > s ? 'w-4 bg-[#0B2545]' : 'w-4 bg-[#CBD5E1]'
               }`}
             />
           ))}
@@ -118,64 +125,82 @@ export default function OnboardingPage() {
       </div>
 
       <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-xl">
-        <div className="bg-white p-6 sm:p-8 shadow-sm border border-[#E5E5E5] rounded-xl space-y-6">
+        <div className="bg-white p-6 sm:p-8 shadow-md border border-[#CBD5E1] rounded-2xl space-y-6">
           
           {/* STEP 1: PERSONA SELECTION */}
           {step === 1 && (
             <div className="space-y-6">
               <div>
-                <div className="text-[10px] font-mono uppercase text-[#737373] tracking-wider">
+                <div className="text-[10px] font-mono uppercase text-[#64748B] tracking-wider">
                   Step 1 of 3
                 </div>
-                <h1 className="text-xl font-bold tracking-tight text-black mt-1">
-                  How will you use Future MCA?
+                <h1 className="text-2xl font-black tracking-tight text-[#0B2545] mt-1">
+                  How do you want to use Future MCA?
                 </h1>
-                <p className="text-xs text-[#525252] mt-0.5">
-                  Select your primary role to configure workflows and attention matrices.
+                <p className="text-xs text-[#475569] mt-0.5">
+                  Future MCA adapts its primary interface to match how you work. You can change this at any time in Settings.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 
-                {/* Business Owner */}
+                {/* Option 1: Business Owner */}
                 <div
                   onClick={() => setSelectedPersona('founder')}
-                  className={`p-5 rounded-xl border cursor-pointer transition-all ${
+                  className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between space-y-3 ${
                     selectedPersona === 'founder'
-                      ? 'border-[#2563EB] ring-2 ring-[#2563EB]/20 bg-[#EFF6FF]'
-                      : 'border-[#E5E5E5] hover:border-[#737373] bg-white'
+                      ? 'border-[#0066CC] ring-2 ring-[#0066CC]/20 bg-[#EFF6FF]'
+                      : 'border-[#CBD5E1] hover:border-[#0B2545] bg-white'
                   }`}
                 >
-                  <div className="w-9 h-9 rounded bg-white text-[#2563EB] border border-[#E5E5E5] flex items-center justify-center mb-3">
-                    <Building2 className="w-5 h-5" />
+                  <div className="space-y-2">
+                    <div className="w-10 h-10 rounded-xl bg-white text-[#0066CC] border border-[#CBD5E1] flex items-center justify-center shadow-xs">
+                      <MessageSquare className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-[#0B2545]">
+                        BUSINESS OWNER
+                      </h3>
+                      <p className="text-xs font-semibold text-[#0066CC] mt-0.5">
+                        Tell me what needs my attention.
+                      </p>
+                    </div>
+                    <p className="text-xs text-[#475569] leading-relaxed">
+                      Ask questions in plain language and let Future MCA guide you through compliance, changes, and applications.
+                    </p>
                   </div>
-                  <h3 className="text-sm font-bold text-black">Founder & Business Owner</h3>
-                  <p className="text-xs text-[#525252] mt-1 leading-relaxed">
-                    Manage your company, understand obligations in plain language, and track RoC applications.
-                  </p>
-                  <div className="text-[10px] text-[#2563EB] font-medium mt-3 flex items-center space-x-1">
-                    <span>Intent-first workflows</span>
+                  <div className="text-[10px] text-[#0066CC] font-bold pt-1 border-t border-[#CBD5E1]/50">
+                    Primary: Conversational Workspace
                   </div>
                 </div>
 
-                {/* CA / CS Professional */}
+                {/* Option 2: CA / CS Professional */}
                 <div
                   onClick={() => setSelectedPersona('professional')}
-                  className={`p-5 rounded-xl border cursor-pointer transition-all ${
+                  className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between space-y-3 ${
                     selectedPersona === 'professional'
-                      ? 'border-[#2563EB] ring-2 ring-[#2563EB]/20 bg-[#EFF6FF]'
-                      : 'border-[#E5E5E5] hover:border-[#737373] bg-white'
+                      ? 'border-[#0066CC] ring-2 ring-[#0066CC]/20 bg-[#EFF6FF]'
+                      : 'border-[#CBD5E1] hover:border-[#0B2545] bg-white'
                   }`}
                 >
-                  <div className="w-9 h-9 rounded bg-white text-[#2563EB] border border-[#E5E5E5] flex items-center justify-center mb-3">
-                    <ShieldCheck className="w-5 h-5" />
+                  <div className="space-y-2">
+                    <div className="w-10 h-10 rounded-xl bg-white text-[#0066CC] border border-[#CBD5E1] flex items-center justify-center shadow-xs">
+                      <Briefcase className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-[#0B2545]">
+                        CA / CS PROFESSIONAL
+                      </h3>
+                      <p className="text-xs font-semibold text-[#0066CC] mt-0.5">
+                        Show me everything I need to manage.
+                      </p>
+                    </div>
+                    <p className="text-xs text-[#475569] leading-relaxed">
+                      Work with companies, filings, forms, deadlines and compliance workflows across your client portfolio.
+                    </p>
                   </div>
-                  <h3 className="text-sm font-bold text-black">CA / CS Professional</h3>
-                  <p className="text-xs text-[#525252] mt-1 leading-relaxed">
-                    Manage 50+ client entities, bulk deadline matrix, instant DSC diagnosis, and MCP agents.
-                  </p>
-                  <div className="text-[10px] text-[#2563EB] font-medium mt-3 flex items-center space-x-1">
-                    <span>Multi-client power tools</span>
+                  <div className="text-[10px] text-[#0066CC] font-bold pt-1 border-t border-[#CBD5E1]/50">
+                    Primary: Professional Operations UI
                   </div>
                 </div>
 
@@ -184,10 +209,10 @@ export default function OnboardingPage() {
               <button
                 type="button"
                 onClick={handlePersonaNext}
-                className="w-full py-2.5 px-4 text-xs font-medium bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg transition-colors flex items-center justify-center space-x-1.5"
+                className="w-full py-3 px-4 text-xs font-bold bg-[#0B2545] hover:bg-[#07192F] text-white rounded-xl transition-all flex items-center justify-center space-x-2 shadow-sm"
               >
-                <span>Continue to Workspace</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <span>Continue to Workspace Configuration</span>
+                <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -196,20 +221,20 @@ export default function OnboardingPage() {
           {step === 2 && (
             <form onSubmit={handleWorkspaceNext} className="space-y-6">
               <div>
-                <div className="text-[10px] font-mono uppercase text-[#737373] tracking-wider">
+                <div className="text-[10px] font-mono uppercase text-[#64748B] tracking-wider">
                   Step 2 of 3
                 </div>
-                <h1 className="text-xl font-bold tracking-tight text-black mt-1">
-                  Create your workspace
+                <h1 className="text-2xl font-black tracking-tight text-[#0B2545] mt-1">
+                  Configure your workspace
                 </h1>
-                <p className="text-xs text-[#525252] mt-0.5">
-                  All companies, compliance records, and AI agent permissions will be isolated inside this workspace.
+                <p className="text-xs text-[#475569] mt-0.5">
+                  All companies, filings, and authorized MCP connections reside inside this workspace.
                 </p>
               </div>
 
               <div className="space-y-4 text-xs">
                 <div>
-                  <label className="font-semibold text-black block mb-1">
+                  <label className="font-semibold text-[#0B2545] block mb-1">
                     Workspace Name
                   </label>
                   <input
@@ -218,17 +243,17 @@ export default function OnboardingPage() {
                     value={workspaceName}
                     onChange={(e) => setWorkspaceName(e.target.value)}
                     placeholder="e.g. Ziggers Technologies or Subanesh & Associates"
-                    className="w-full px-3.5 py-2.5 text-xs border border-[#E5E5E5] rounded-lg outline-none focus:border-[#2563EB] text-[#0A0A0A]"
+                    className="w-full px-3.5 py-2.5 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl outline-none focus:border-[#0B2545] text-[#0F172A]"
                   />
                 </div>
 
-                <div className="p-3.5 rounded bg-[#F7F7F5] border border-[#E5E5E5] space-y-1">
-                  <div className="font-semibold text-black flex items-center space-x-1.5">
-                    <Layers className="w-3.5 h-3.5 text-[#2563EB]" />
-                    <span>Workspace Isolation Guarantee</span>
+                <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#CBD5E1] space-y-1">
+                  <div className="font-bold text-[#0B2545] flex items-center space-x-1.5">
+                    <Layers className="w-4 h-4 text-[#0066CC]" />
+                    <span>One Platform • Two Experiences</span>
                   </div>
-                  <p className="text-[11px] text-[#525252]">
-                    Data created under this workspace is completely isolated. Only authorized team members and scoped MCP clients can read this workspace.
+                  <p className="text-[11px] text-[#475569]">
+                    Whether you use the Conversational Workspace or Professional UI, the underlying Supabase records, companies, and permissions remain shared and synchronized.
                   </p>
                 </div>
               </div>
@@ -237,7 +262,7 @@ export default function OnboardingPage() {
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="px-4 py-2 text-xs font-medium text-[#525252] hover:text-black flex items-center space-x-1"
+                  className="px-4 py-2 text-xs font-semibold text-[#64748B] hover:text-[#0B2545] flex items-center space-x-1"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Back</span>
@@ -246,9 +271,9 @@ export default function OnboardingPage() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="px-5 py-2.5 text-xs font-medium bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 text-white rounded-lg transition-colors flex items-center space-x-1.5"
+                  className="px-5 py-2.5 text-xs font-bold bg-[#0B2545] hover:bg-[#07192F] disabled:opacity-50 text-white rounded-xl transition-all flex items-center space-x-1.5 shadow-sm"
                 >
-                  <span>{isLoading ? 'Creating Workspace...' : 'Continue to Add Company'}</span>
+                  <span>{isLoading ? 'Creating Workspace...' : 'Continue to Company Setup'}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -259,31 +284,31 @@ export default function OnboardingPage() {
           {step === 3 && (
             <div className="space-y-6">
               <div>
-                <div className="text-[10px] font-mono uppercase text-[#737373] tracking-wider">
+                <div className="text-[10px] font-mono uppercase text-[#64748B] tracking-wider">
                   Step 3 of 3
                 </div>
-                <h1 className="text-xl font-bold tracking-tight text-black mt-1">
+                <h1 className="text-2xl font-black tracking-tight text-[#0B2545] mt-1">
                   Add a company to your workspace
                 </h1>
-                <p className="text-xs text-[#525252] mt-0.5">
-                  Load a realistic demo entity with pre-configured directors and compliance deadlines, or create your own entity.
+                <p className="text-xs text-[#475569] mt-0.5">
+                  Load a realistic demo entity with pre-configured directors and compliance deadlines, or create your custom entity.
                 </p>
               </div>
 
-              {/* Option A: Quick Hackathon Demo Loading */}
-              <div className="p-5 rounded-xl bg-[#EFF6FF] border border-[#2563EB]/30 space-y-3">
+              {/* Option A: Quick Demo Loading */}
+              <div className="p-5 rounded-2xl bg-[#EFF6FF] border border-[#BFDBFE] space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <Zap className="w-4 h-4 text-[#2563EB]" />
-                    <span className="font-bold text-xs text-black">Recommended for Testing</span>
+                    <Zap className="w-4 h-4 text-[#0066CC]" />
+                    <span className="font-bold text-xs text-[#0B2545]">Instant Demo Company</span>
                   </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white text-[#2563EB] font-bold border border-[#2563EB]/20">
-                    Instant Demo Seed
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white text-[#0066CC] font-bold border border-[#BFDBFE]">
+                    Ready to Test
                   </span>
                 </div>
                 
-                <p className="text-xs text-[#525252]">
-                  Instantly load <strong>Ziggers Private Limited</strong> with 3 Directors, critical AOC-4 & DIR-3 KYC statutory items, and an active RoC application journey into your workspace.
+                <p className="text-xs text-[#475569]">
+                  Load <strong>Ziggers Private Limited</strong> with active directors, urgent AOC-4 & DIR-3 KYC deadlines, and RoC application records.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
@@ -291,64 +316,64 @@ export default function OnboardingPage() {
                     type="button"
                     disabled={isLoading}
                     onClick={() => handleLoadDemo('ziggers')}
-                    className="p-2.5 rounded-lg bg-black hover:bg-[#0A0A0A] text-white text-xs font-medium text-center transition-colors shadow-sm"
+                    className="p-2.5 rounded-xl bg-[#0B2545] hover:bg-[#07192F] text-white text-xs font-bold text-center transition-all shadow-sm"
                   >
-                    Load Ziggers Pvt Ltd
+                    Ziggers Pvt Ltd
                   </button>
                   <button
                     type="button"
                     disabled={isLoading}
                     onClick={() => handleLoadDemo('unfounded')}
-                    className="p-2.5 rounded-lg bg-white hover:bg-[#F7F7F5] border border-[#E5E5E5] text-[#0A0A0A] text-xs font-medium text-center transition-colors"
+                    className="p-2.5 rounded-xl bg-white hover:bg-[#F8FAFC] border border-[#CBD5E1] text-[#0B2545] text-xs font-bold text-center transition-all"
                   >
-                    Unfounded Tech Pvt Ltd
+                    Unfounded Tech
                   </button>
                   <button
                     type="button"
                     disabled={isLoading}
                     onClick={() => handleLoadDemo('futurefoods')}
-                    className="p-2.5 rounded-lg bg-white hover:bg-[#F7F7F5] border border-[#E5E5E5] text-[#0A0A0A] text-xs font-medium text-center transition-colors"
+                    className="p-2.5 rounded-xl bg-white hover:bg-[#F8FAFC] border border-[#CBD5E1] text-[#0B2545] text-xs font-bold text-center transition-all"
                   >
-                    Future Foods Pvt Ltd
+                    Future Foods
                   </button>
                 </div>
               </div>
 
               {/* Option B: Manual Company Creation */}
-              <div className="pt-2 border-t border-[#E5E5E5] space-y-3">
-                <div className="text-xs font-bold text-black uppercase tracking-wider text-[#737373]">
+              <div className="pt-2 border-t border-[#E2E8F0] space-y-3">
+                <div className="text-xs font-bold text-[#0B2545] uppercase tracking-wider">
                   Or add a custom company
                 </div>
 
                 <form onSubmit={handleCreateCustom} className="space-y-3 text-xs">
                   <div>
-                    <label className="font-semibold text-black block mb-1">Company Name</label>
+                    <label className="font-semibold text-[#475569] block mb-1">Company Name</label>
                     <input
                       type="text"
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
                       placeholder="e.g. Apex Frontier Robotics Private Limited"
-                      className="w-full px-3 py-2 text-xs border border-[#E5E5E5] rounded-lg outline-none focus:border-[#2563EB]"
+                      className="w-full px-3.5 py-2.5 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl outline-none focus:border-[#0B2545]"
                     />
                   </div>
 
                   <div>
-                    <label className="font-semibold text-black block mb-1">CIN (Optional)</label>
+                    <label className="font-semibold text-[#475569] block mb-1">CIN (Optional)</label>
                     <input
                       type="text"
                       value={companyCin}
                       onChange={(e) => setCompanyCin(e.target.value)}
                       placeholder="e.g. U72900KA2024PTC123456"
-                      className="w-full px-3 py-2 text-xs font-mono border border-[#E5E5E5] rounded-lg outline-none focus:border-[#2563EB]"
+                      className="w-full px-3.5 py-2.5 text-xs font-mono bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl outline-none focus:border-[#0B2545]"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={!companyName.trim() || isLoading}
-                    className="w-full py-2.5 px-4 text-xs font-medium bg-[#F7F7F5] hover:bg-[#EFF6FF] border border-[#E5E5E5] hover:border-[#2563EB] disabled:opacity-40 text-black rounded-lg transition-colors"
+                    className="w-full py-2.5 px-4 text-xs font-bold bg-white hover:bg-[#EFF6FF] border border-[#CBD5E1] hover:border-[#0066CC] disabled:opacity-40 text-[#0B2545] rounded-xl transition-all"
                   >
-                    Create Custom Company & Enter
+                    Create Custom Company & Enter Workspace &rarr;
                   </button>
                 </form>
               </div>
@@ -357,7 +382,7 @@ export default function OnboardingPage() {
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="px-4 py-2 text-xs font-medium text-[#525252] hover:text-black flex items-center space-x-1"
+                  className="px-4 py-2 text-xs font-semibold text-[#64748B] hover:text-[#0B2545] flex items-center space-x-1"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Back</span>

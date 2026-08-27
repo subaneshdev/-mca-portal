@@ -29,7 +29,7 @@ export default function AiClientsAndMcpPage() {
   const [toolOutput, setToolOutput] = useState<string | null>(null);
   const [isRunningTool, setIsRunningTool] = useState(false);
 
-  const mcpUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/mcp` : 'https://mcp.futuremca.in/api/mcp';
+  const mcpUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/mcp` : 'https://mca-portal-ten.vercel.app/api/mcp';
 
   const claudeConfigJson = JSON.stringify({
     mcpServers: {

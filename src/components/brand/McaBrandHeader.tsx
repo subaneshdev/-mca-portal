@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AshokaEmblem, McaLogoBadge } from './McaEmblem';
-import { Search, User, ArrowRight, Sparkles } from 'lucide-react';
+import { Search, User, ArrowRight, Sparkles, Bot, Briefcase } from 'lucide-react';
 
 interface McaBrandHeaderProps {
   onSearch?: (query: string) => void;
@@ -29,7 +29,7 @@ export function McaBrandHeader({ onSearch, searchValue, setSearchValue }: McaBra
   };
 
   return (
-    <header className="w-full bg-white border-b border-[#E2E8F0] shadow-[0_1px_3px_rgba(0,0,0,0.05)] sticky top-0 z-50">
+    <header className="w-full bg-white border-b border-[#E2E8F0] shadow-[0_1px_3px_rgba(0,0,0,0.05)] sticky top-0 z-50 font-sans">
       
       {/* Top Government Strip */}
       <div className="bg-[#0B2545] text-white py-1 px-4 sm:px-8 text-[11px] font-medium flex items-center justify-between border-b border-[#081B33]">
@@ -98,15 +98,15 @@ export function McaBrandHeader({ onSearch, searchValue, setSearchValue }: McaBra
           </div>
         </div>
 
-        {/* Center: Large Universal Search Bar */}
-        <div className="flex-1 max-w-2xl">
+        {/* Center: Universal Search Bar */}
+        <div className="flex-1 max-w-xl">
           <form onSubmit={handleSearchSubmit} className="relative w-full">
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search services, companies, forms or ask a question (e.g. 'My director resigned')"
-              className="w-full bg-[#F1F5F9] hover:bg-[#E2E8F0]/80 focus:bg-white text-xs sm:text-sm text-[#0F172A] placeholder-[#64748B] pl-4 pr-10 py-2.5 sm:py-2.5 rounded-full border border-[#CBD5E1] focus:border-[#0066CC] focus:ring-2 focus:ring-[#0066CC]/20 outline-none transition-all"
+              placeholder="Search services, forms, or ask in plain language (e.g. 'A director resigned')"
+              className="w-full bg-[#F1F5F9] hover:bg-[#E2E8F0]/80 focus:bg-white text-xs sm:text-sm text-[#0F172A] placeholder-[#64748B] pl-4 pr-10 py-2.5 rounded-full border border-[#CBD5E1] focus:border-[#0066CC] focus:ring-2 focus:ring-[#0066CC]/20 outline-none transition-all"
             />
             <button
               type="submit"
@@ -118,28 +118,28 @@ export function McaBrandHeader({ onSearch, searchValue, setSearchValue }: McaBra
           </form>
         </div>
 
-        {/* Right: Authentic MCA Outlined Login / Register Button */}
-        <div className="flex items-center space-x-3 shrink-0">
+        {/* Right: Dual Workspace Entry & Login */}
+        <div className="flex items-center space-x-2.5 shrink-0">
           <Link
-            href="/auth/login"
-            className="flex items-center space-x-2 px-4 py-2 rounded-full border-2 border-[#0055A5] text-[#0055A5] hover:bg-[#0055A5] hover:text-white font-semibold text-xs sm:text-sm transition-all shadow-xs active:scale-95"
+            href="/chat"
+            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-full bg-[#EFF6FF] hover:bg-[#DBEAFE] border border-[#BFDBFE] text-[#0066CC] font-bold text-xs transition-all shadow-xs"
           >
-            <User className="w-4 h-4" />
-            <span>Login / Register</span>
+            <Bot className="w-3.5 h-3.5" />
+            <span>Founder Chat</span>
           </Link>
-          
+
           <Link
             href="/overview"
-            className="hidden sm:flex items-center space-x-1.5 px-4 py-2 rounded-full bg-[#0B2545] hover:bg-[#07192F] text-white font-semibold text-xs sm:text-sm transition-all shadow-sm"
+            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-full bg-[#0B2545] hover:bg-[#07192F] text-white font-bold text-xs transition-all shadow-sm"
           >
-            <span>Open Portal</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <Briefcase className="w-3.5 h-3.5" />
+            <span>Professional UI</span>
           </Link>
         </div>
 
       </div>
 
-      {/* Sub-Header Evolution Banner */}
+      {/* Sub-Header Navigation Bar */}
       <div className="bg-[#F8FAFC] border-t border-[#E2E8F0] px-4 sm:px-8 py-2 flex flex-wrap items-center justify-between text-xs">
         <div className="flex items-center space-x-2">
           <span className="font-bold text-[#0B2545] flex items-center space-x-1">
@@ -148,14 +148,14 @@ export function McaBrandHeader({ onSearch, searchValue, setSearchValue }: McaBra
           </span>
           <span className="text-[#64748B]">•</span>
           <span className="text-[#475569]">
-            The next-generation, human-guided way to experience MCA services.
+            One platform. Two distinct workspaces: <strong>Conversational Chat for Founders</strong> and <strong>Operational Matrix for CA/CS</strong>.
           </span>
         </div>
 
         <div className="hidden md:flex items-center space-x-4 text-[#475569] font-medium">
           <Link href="/companies" className="hover:text-[#0066CC] transition-colors">Master Data</Link>
-          <Link href="/compliance" className="hover:text-[#0066CC] transition-colors">Statutory Deadlines</Link>
-          <Link href="/filings" className="hover:text-[#0066CC] transition-colors">Event Workflows</Link>
+          <Link href="/compliance" className="hover:text-[#0066CC] transition-colors">Compliance Schedule</Link>
+          <Link href="/filings" className="hover:text-[#0066CC] transition-colors">e-Forms & Events</Link>
           <Link href="/applications" className="hover:text-[#0066CC] transition-colors">Track SRN</Link>
           <Link href="/connect-ai" className="hover:text-[#0066CC] text-[#0284C7] font-semibold flex items-center space-x-1">
             <Sparkles className="w-3 h-3 text-[#0284C7]" />

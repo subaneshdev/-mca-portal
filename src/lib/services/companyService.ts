@@ -300,7 +300,7 @@ export class CompanyService {
             dsc_status: 'ACTIVE' as const,
             dsc_expiry: '2026-11-30',
             kyc_status: 'COMPLIANT' as const,
-            email: 'subanesh@ziggers.io',
+            email: 'c.subanesh@gmail.com',
             phone: '+91 98401 23456'
           },
           {
@@ -312,7 +312,7 @@ export class CompanyService {
             dsc_status: 'ACTIVE' as const,
             dsc_expiry: '2027-02-28',
             kyc_status: 'INCOMPLETE' as const,
-            email: 'ananya@ziggers.io',
+            email: 'c.subanesh@gmail.com',
             phone: '+91 98401 65432'
           },
           {
@@ -324,7 +324,7 @@ export class CompanyService {
             dsc_status: 'EXPIRING_SOON' as const,
             dsc_expiry: '2026-09-15',
             kyc_status: 'COMPLIANT' as const,
-            email: 'rohan@ziggers.io',
+            email: 'c.subanesh@gmail.com',
             phone: '+91 98401 78901'
           }
         ]
@@ -339,7 +339,7 @@ export class CompanyService {
         incorporation_date: '2022-08-19',
         roc_jurisdiction: 'ROC Delhi',
         registered_office: 'Level 5, Max Towers, Sector 16B, Noida / Delhi NCR - 201301',
-        email: 'founders@unfounded.tech',
+        email: 'c.subanesh@gmail.com',
         pan: 'AAACU5678R',
         gst: '07AAACU5678R1ZX',
         directors: [
@@ -352,7 +352,7 @@ export class CompanyService {
             dsc_status: 'ACTIVE' as const,
             dsc_expiry: '2027-05-10',
             kyc_status: 'COMPLIANT' as const,
-            email: 'vikram@unfounded.tech'
+            email: 'c.subanesh@gmail.com'
           },
           {
             din: '09567813',
@@ -361,9 +361,9 @@ export class CompanyService {
             appointment_date: '2022-08-19',
             din_status: 'APPROVED' as const,
             dsc_status: 'ACTIVE' as const,
-            dsc_expiry: '2027-08-15',
+            dsc_expiry: '2027-04-18',
             kyc_status: 'COMPLIANT' as const,
-            email: 'sneha@unfounded.tech'
+            email: 'c.subanesh@gmail.com'
           }
         ]
       },

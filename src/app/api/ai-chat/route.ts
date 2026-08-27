@@ -10,6 +10,8 @@ export async function POST(request: NextRequest) {
   try {
     const { message, context = {} } = await request.json();
     const query = (message || '').trim().toLowerCase();
+    const activeCompany = context.companyName || 'Ziggers Technologies Pvt Ltd';
+    const activeCin = context.cin || 'U72900KA2021PTC145892';
 
     // 1. Check if it's an error diagnosis question
     if (query.includes('error') || query.includes('fail') || query.includes('reject') || query.includes('dsc') || query.includes('reconcil')) {
@@ -25,7 +27,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 2. Check if it's an intent-based corporate event
+    // 2. Application Tracking / Delay Inquiry
+    if (query.includes('application') || query.includes('srn') || query.includes('status') || query.includes('delay') || query.includes('approval')) {
+      return NextResponse.json({
+        type: 'general',
+        text: `### 🔎 Application Status for **${activeCompany}**\n\n• **SRN:** \`F98234129\` (Form RUN Name Reservation)\n• **Current Stage:** Under Scrutiny at Central Registration Centre (CRC)\n• **Filing Date:** 24 Aug 2026\n• **Estimated Turnaround:** 24 to 48 working hours\n\nNo resubmission notices have been issued by the examining RoC officer.`,
+        action: {
+          label: 'Track All SRN Applications',
+          url: '/applications'
+        },
+        tools_used: ['get_application_status']
+      });
+    }
+
+    // 3. Check if it's an intent-based corporate event
     if (query.includes('resig') || query.includes('add director') || query.includes('appoint') || query.includes('address') || query.includes('share') || query.includes('allot') || query.includes('what changed')) {
       const match = FilingService.matchIntentByQuery(query);
       if (match) {
@@ -41,26 +56,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. Check if it's asking for what needs attention / compliance deadlines
-    if (query.includes('attention') || query.includes('due') || query.includes('compliance') || query.includes('this month') || query.includes('critical') || query.includes('deadline')) {
-      const cin = context.cin || 'U72900KA2021PTC145892';
-      const deadlines = await ComplianceService.getUpcomingDeadlines(cin);
+    // 4. Check if it's asking for what needs attention / compliance deadlines
+    if (query.includes('attention') || query.includes('due') || query.includes('compliance') || query.includes('this month') || query.includes('critical') || query.includes('deadline') || query.includes('miss')) {
+      const deadlines = await ComplianceService.getUpcomingDeadlines(activeCin);
       const critical = deadlines.filter(d => d.urgency === 'critical' || d.urgency === 'action_required');
 
       const itemsList = critical.map(c => `• **${c.form_code} (${c.title})** — Due **${c.due_date}** (${c.urgency.toUpperCase()})\n  _${c.description}_`).join('\n\n');
 
       return NextResponse.json({
         type: 'compliance_summary',
-        text: `### ⚠️ Immediate Action Items Requiring Attention\n\nYou currently have **${critical.length} high-priority items** for **Ziggers Private Limited**:\n\n${itemsList}\n\nFailure to submit AOC-4 within the 30-day AGM window incurs a statutory fine of INR 100/day.`,
+        text: `### ⚠️ Immediate Action Items Requiring Attention\n\nYou currently have **${critical.length} high-priority statutory items** for **${activeCompany}**:\n\n${itemsList}\n\n**Penalty Projection:** Delayed submission of AOC-4 incurs a statutory penalty of ₹100/day. Director KYC default incurs ₹5,000 late fee for deactivation reactivation.`,
         action: {
-          label: 'View Compliance Centre',
+          label: 'View Compliance Schedule',
           url: '/compliance'
         },
         tools_used: ['get_compliance_status', 'get_upcoming_deadlines', 'get_next_required_action']
       });
     }
 
-    // 4. Fallback search on knowledge base
+    // 5. Fallback search on knowledge base
     const kbResults = await executeMcpTool('search_mca_knowledge', { query: message });
     if (kbResults.results && kbResults.results.length > 0) {
       const top = kbResults.results[0];
@@ -75,10 +89,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 5. General intelligent response
+    // 6. General intelligent response
     return NextResponse.json({
       type: 'general',
-      text: `Future MCA is analyzing your inquiry: *"I want to check ${message}"*.\n\nAs your authorized corporate assistant, I have direct access to your company master data, active Board DINs, DSC expiration registers, and RoC application timelines.\n\nYou can ask me to:\n• Check what compliance is due this month\n• Start a workflow ("A director resigned", "We changed our address")\n• Diagnose any MCA V3 error code or DSC issue\n• Inspect filed application status and timelines`,
+      text: `Future MCA is analyzing your inquiry: *"I want to check ${message}"*.\n\nAs your authorized corporate assistant for **${activeCompany}**, I have direct access to your company master data, active Board DINs, DSC expiration registers, and RoC application timelines.\n\nYou can ask me to:\n• Check what compliance is due this month\n• Start a workflow ("A director resigned", "We changed our address")\n• Diagnose any MCA V3 error code or DSC issue\n• Inspect filed application status and timelines`,
       action: {
         label: 'View Overview Dashboard',
         url: '/overview'

@@ -102,7 +102,7 @@ function AuthorizeContent() {
   const handleQuickDemoLogin = async (role: 'founder' | 'professional') => {
     setLoading(true);
     setAuthError(null);
-    const demoEmail = role === 'founder' ? 'founder@ziggers.io' : 'compliance@ca-associates.in';
+    const demoEmail = 'c.subanesh@gmail.com';
     
     // Auto-create workspace if needed
     const { data: wsData } = await supabase
@@ -126,7 +126,7 @@ function AuthorizeContent() {
     setUser({
       id: `usr_${role}_${Date.now()}`,
       email: demoEmail,
-      user_metadata: { full_name: role === 'founder' ? 'Subanesh M. (Founder)' : 'CA Ananya Sharma' }
+      user_metadata: { full_name: 'Subanesh M.' }
     });
 
     if (activeWs) {

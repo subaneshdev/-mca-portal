@@ -12,7 +12,7 @@ export const MOCK_COMPANIES: Company[] = [
     incorporation_date: '2021-04-12',
     roc_jurisdiction: 'ROC Bangalore',
     registered_office: '4th Floor, Salarpuria Cyber Park, Electronic City Phase 1, Bangalore, Karnataka - 560100',
-    email: 'compliance@ziggers.io',
+    email: 'c.subanesh@gmail.com',
     pan: 'AABCG1234F',
     gst: '29AABCG1234F1Z5',
     next_action: 'AOC-4 Due in 2 days (Critical)',
@@ -33,7 +33,7 @@ export const MOCK_COMPANIES: Company[] = [
     incorporation_date: '2022-08-19',
     roc_jurisdiction: 'ROC Mumbai',
     registered_office: 'Unit 702, Supreme Business Park, Hiranandani Gardens, Powai, Mumbai, Maharashtra - 400076',
-    email: 'founders@unfounded.tech',
+    email: 'c.subanesh@gmail.com',
     pan: 'AACXU9876P',
     gst: '27AACXU9876P1ZV',
     next_action: 'INC-22 Address Resubmission Pending',
@@ -54,7 +54,7 @@ export const MOCK_COMPANIES: Company[] = [
     incorporation_date: '2019-01-15',
     roc_jurisdiction: 'ROC Delhi',
     registered_office: 'Plot 18, Aero City Business Hub, New Delhi, Delhi - 110037',
-    email: 'secretarial@bharataerospace.in',
+    email: 'c.subanesh@gmail.com',
     pan: 'AABCB4455Q',
     gst: '07AABCB4455Q1Z8',
     next_action: 'Cost Audit CRA-4 Due in 17 days',
@@ -75,7 +75,7 @@ export const MOCK_COMPANIES: Company[] = [
     incorporation_date: '2023-02-10',
     roc_jurisdiction: 'ROC Hyderabad',
     registered_office: 'Survey 45, Financial District, Nanakramguda, Hyderabad, Telangana - 500032',
-    email: 'contact@novapulse.health',
+    email: 'c.subanesh@gmail.com',
     pan: 'AAPFN7788L',
     gst: '36AAPFN7788L1ZQ',
     next_action: 'Statement of Account (Form 8) Completed',
@@ -100,7 +100,7 @@ export const MOCK_DIRECTORS: Record<string, Director[]> = {
       dsc_status: 'ACTIVE',
       dsc_expiry: '2026-11-30',
       kyc_status: 'COMPLIANT',
-      email: 'subanesh@ziggers.io',
+      email: 'c.subanesh@gmail.com',
       phone: '+91 98401 23456'
     },
     {
@@ -114,7 +114,7 @@ export const MOCK_DIRECTORS: Record<string, Director[]> = {
       dsc_status: 'ACTIVE',
       dsc_expiry: '2026-09-15',
       kyc_status: 'INCOMPLETE',
-      email: 'ananya@ziggers.io',
+      email: 'c.subanesh@gmail.com',
       phone: '+91 98402 34567'
     },
     {
@@ -128,7 +128,7 @@ export const MOCK_DIRECTORS: Record<string, Director[]> = {
       dsc_status: 'EXPIRING_SOON',
       dsc_expiry: '2026-09-25',
       kyc_status: 'COMPLIANT',
-      email: 'rohan@ziggers.io',
+      email: 'c.subanesh@gmail.com',
       phone: '+91 98403 45678'
     }
   ],
@@ -144,7 +144,7 @@ export const MOCK_DIRECTORS: Record<string, Director[]> = {
       dsc_status: 'ACTIVE',
       dsc_expiry: '2027-03-20',
       kyc_status: 'COMPLIANT',
-      email: 'vikram@unfounded.tech',
+      email: 'c.subanesh@gmail.com',
       phone: '+91 97111 88990'
     },
     {
@@ -158,7 +158,7 @@ export const MOCK_DIRECTORS: Record<string, Director[]> = {
       dsc_status: 'ACTIVE',
       dsc_expiry: '2027-01-14',
       kyc_status: 'COMPLIANT',
-      email: 'priya@unfounded.tech',
+      email: 'c.subanesh@gmail.com',
       phone: '+91 97111 88991'
     }
   ]

@@ -1,1108 +1,513 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { McaBrandHeader } from '@/components/brand/McaBrandHeader';
 import { AshokaEmblem, McaLogoBadge } from '@/components/brand/McaEmblem';
-import { 
-  Building2, 
-  FileText, 
-  Clock, 
-  Search, 
-  HelpCircle, 
-  ArrowRight, 
-  CheckCircle2, 
-  AlertTriangle, 
-  ShieldCheck, 
-  User, 
-  Users, 
-  Briefcase, 
-  Calendar, 
-  Check, 
-  Sparkles, 
-  Lock, 
-  ChevronRight, 
-  ChevronDown,
-  Layers,
-  Cpu,
-  Compass,
-  FileCheck,
-  Send
-} from 'lucide-react';
+import { useWorkspace } from '@/context/WorkspaceContext';
+import { Search, User, ArrowRight, Sparkles, LogOut, CheckCircle2, Bot } from 'lucide-react';
 
-export default function RedesignedLandingPage() {
+export default function SingleViewportLandingPage() {
   const router = useRouter();
+  const { user, profile, signOut } = useWorkspace();
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // Interactive "Starting a Company" Widget State
-  const [entityType, setEntityType] = useState<'pvt_ltd' | 'llp' | 'opc' | 'unsure'>('pvt_ltd');
-  const [companyNameInput, setCompanyNameInput] = useState('Ziggers');
-  const [businessDescInput, setBusinessDescInput] = useState('We connect businesses with flexible workers');
-  const [foundersCountInput, setFoundersCountInput] = useState('3');
+  const [activeModal, setActiveModal] = useState<'product' | 'mcp' | 'professionals' | null>(null);
 
-  // Interactive "I Need Help" Widget State
-  const [helpInput, setHelpInput] = useState('');
-  const [helpResponse, setHelpResponse] = useState<{ query: string; steps: string[] } | null>(null);
+  const isAuthenticated = !!user;
 
-  const handleHelpSubmit = (e: React.FormEvent) => {
+  // Close modals on escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveModal(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!helpInput.trim()) return;
-    
-    const q = helpInput.toLowerCase();
-    let steps = [
-      'Identify the statutory requirement and compliance timeline',
-      'Gather necessary board resolutions and verified documentation',
-      'Submit the intimation through Future MCA guided workflow'
-    ];
-
-    if (q.includes('resig') || q.includes('director')) {
-      steps = [
-        'Obtain formal resignation letter with effective date from the director',
-        'Convene Board meeting to accept resignation and pass resolution',
-        'Submit Form DIR-12 intimation to RoC within 30 days of cessation'
-      ];
-    } else if (q.includes('address') || q.includes('office')) {
-      steps = [
-        'Collect registered office address proof (utility bill under 60 days old)',
-        'Obtain NOC from the property owner / landlord',
-        'Submit Form INC-22 within 30 days of office relocation'
-      ];
-    } else if (q.includes('file') || q.includes('annual')) {
-      steps = [
-        'Audit annual balance sheet and P&L financial statements',
-        'Prepare Directors Report and conduct Annual General Meeting (AGM)',
-        'File AOC-4 (Financials) within 30 days and MGT-7 (Annual Return) within 60 days of AGM'
-      ];
+    if (!searchQuery.trim()) return;
+    if (isAuthenticated) {
+      router.push(`/chat?query=${encodeURIComponent(searchQuery)}`);
+    } else {
+      router.push(`/auth/login?next=${encodeURIComponent(`/chat?query=${searchQuery}`)}`);
     }
+  };
 
-    setHelpResponse({ query: helpInput, steps });
+  const getProtectedUrl = (targetUrl: string) => {
+    if (isAuthenticated) return targetUrl;
+    return `/auth/login?next=${encodeURIComponent(targetUrl)}`;
   };
 
   return (
-    <div className="min-h-screen bg-white text-[#0F172A] font-sans selection:bg-[#0B2545] selection:text-white">
+    <div className="relative w-full h-screen min-h-screen overflow-hidden bg-black text-white font-sans selection:bg-white selection:text-black flex flex-col justify-between">
       
-      {/* 1. Official Authentic MCA Navigation Header */}
-      <McaBrandHeader
-        searchValue={searchQuery}
-        setSearchValue={setSearchQuery}
-        onSearch={(q) => router.push(`/filings/new?query=${encodeURIComponent(q)}`)}
+      {/* External CSS & Font Links */}
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      />
+      <link
+        href="https://db.onlinewebfonts.com/c/8cb707a9b8a73f8a7403336b861c3074?family=BubbledotICG-FinePos"
+        rel="stylesheet"
+      />
+      <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
+        crossOrigin="anonymous"
+        referrerPolicy="no-referrer"
       />
 
-      {/* 2. HERO SECTION */}
-      <section className="bg-gradient-to-b from-[#F8FAFC] via-[#F1F5F9]/60 to-white pt-12 pb-16 sm:pt-16 sm:pb-20 border-b border-[#E2E8F0]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
+      {/* Embedded CSS for Exact Visual Specs & Animations */}
+      <style jsx global>{`
+        @font-face {
+          font-family: "Geist Pixel Circle";
+          src: url("/fonts/GeistPixel-Circle.woff2") format("woff2");
+          font-weight: 400;
+          font-display: swap;
+        }
+
+        :root {
+          --bg: #000000;
+          --text: #ffffff;
+          --muted: #8e8e8e;
+          --nav-text: #2e2e2e;
+          --pill-dark: #28282a;
+          --sign-in-text: #c8c8c8;
+          --nav-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+          --trust-bg: #28282a;
+          --trust-border: rgba(255, 255, 255, 0.4);
+          --trust-text: #c4c2c3;
+          --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+          --font-display: "BubbledotICG-FinePos", "Geist Pixel Circle", monospace;
+        }
+
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-16px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes reveal {
+          from {
+            opacity: 0;
+            transform: translateY(22px) scale(0.98);
+            filter: blur(6px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+          }
+        }
+
+        .anim-slide-down {
+          animation: slideDown 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .anim-reveal {
+          opacity: 0;
+          animation: reveal 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .display-font {
+          font-family: var(--font-display);
+        }
+
+        .headline-responsive {
+          font-family: var(--font-display);
+          font-size: clamp(34px, 6.2vw, 76px);
+          line-height: 1.12;
+          letter-spacing: -0.04em;
+          font-weight: 400;
+        }
+
+        @media (max-width: 720px) {
+          .headline-responsive {
+            letter-spacing: -0.08em;
+            line-height: 1.05;
+          }
+        }
+
+        @media (max-width: 420px) {
+          .headline-responsive {
+            letter-spacing: -0.09em;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+          }
+          .anim-reveal, .anim-slide-down {
+            opacity: 1 !important;
+            transform: none !important;
+            filter: none !important;
+          }
+        }
+      `}</style>
+
+      {/* Exact Background Video */}
+      <div className="absolute inset-0 bg-black overflow-hidden z-0 pointer-events-none">
+        <video
+          className="absolute inset-0 w-full h-full object-cover z-0 opacity-80"
+          autoPlay
+          muted
+          loop
+          playsInline
+        >
+          <source
+            src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260809_012548_ef22562c-c0ae-4816-ad9d-f8922af4e6a7.mp4"
+            type="video/mp4"
+          />
+        </video>
+        {/* Subtle dark radial overlay for readability */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.25)_0%,rgba(0,0,0,0.65)_100%)] bg-black/40 z-1" />
+      </div>
+
+      {/* ==================================================
+         1. AUTHENTIC GOVERNMENT OF INDIA MCA HEADER BAR
+         (Matching exact visual specifications in screenshot)
+      ================================================== */}
+      <header className="relative z-30 w-full bg-white text-[#0B2545] shadow-md anim-slide-down">
+        
+        {/* Top Government Dark Navy Strip */}
+        <div className="bg-[#0B2545] text-white py-1 px-4 sm:px-8 text-[11px] font-medium flex items-center justify-between border-b border-[#081B33]">
+          <div className="flex items-center space-x-3">
+            <span className="font-semibold tracking-wide">भारत सरकार • GOVERNMENT OF INDIA</span>
+            <span className="hidden md:inline text-[#94A3B8]">|</span>
+            <span className="hidden md:inline text-[#E2E8F0] font-normal">कार्पोरेट कार्य मंत्रालय • Ministry of Corporate Affairs</span>
+          </div>
+          <div className="flex items-center space-x-4 text-[11px]">
+            <Link href="/system-status" className="text-[#93C5FD] hover:underline flex items-center space-x-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#4ADE80] inline-block animate-pulse"></span>
+              <span>Services Operational</span>
+            </Link>
+            <span className="text-[#64748B]">|</span>
+            <span className="text-[#E2E8F0] font-mono">Accessibility: A+ A-</span>
+          </div>
+        </div>
+
+        {/* Main Header Bar Row */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3 sm:gap-6">
           
-          {/* Official Endorsement Tag */}
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#E2E8F0]/80 border border-[#CBD5E1] text-[11px] sm:text-xs font-semibold text-[#0B2545] shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-[#0066CC]"></span>
-            <span>Ministry of Corporate Affairs • Next Generation Citizen Platform</span>
+          {/* Left: Ashoka Emblem + MCA Badge + Typography + Pillars */}
+          <div className="flex items-center space-x-3 sm:space-x-4 shrink-0">
+            
+            {/* Ashoka Stambh Lion Capital Emblem */}
+            <Link href="/" className="shrink-0 group">
+              <AshokaEmblem className="w-8 h-11 sm:w-10 sm:h-13 drop-shadow-sm group-hover:opacity-95 transition-opacity" />
+            </Link>
+
+            {/* MCA Logo Badge & Typography */}
+            <Link href="/" className="flex items-center space-x-2.5 group">
+              <McaLogoBadge className="w-8 h-8 sm:w-9 sm:h-9 rounded shadow-sm group-hover:scale-105 transition-transform" />
+              <div className="leading-tight text-left">
+                <div className="font-extrabold text-[11px] sm:text-[12.5px] tracking-tight text-[#0B2545] uppercase font-sans">
+                  Ministry of Corporate Affairs
+                </div>
+                <div className="text-[9px] sm:text-[10px] font-bold text-[#0066CC] tracking-wider uppercase">
+                  Government of India
+                </div>
+              </div>
+            </Link>
+
+            {/* Vertical Divider */}
+            <div className="hidden xl:block w-px h-10 bg-[#CBD5E1]" />
+
+            {/* Mottos & 4 Pillars */}
+            <div className="hidden xl:flex flex-col justify-center text-left">
+              <div className="text-[10.5px] font-bold text-[#0B2545] tracking-wider uppercase">
+                Empowering Business, Protecting Investors
+              </div>
+              <div className="text-[9.5px] font-bold tracking-wide mt-0.5 flex items-center space-x-1.5">
+                <span className="text-[#EA580C]">REGULATOR</span>
+                <span className="text-[#94A3B8]">•</span>
+                <span className="text-[#16A34A]">INTEGRATOR</span>
+                <span className="text-[#94A3B8]">•</span>
+                <span className="text-[#DC2626]">FACILITATOR</span>
+                <span className="text-[#94A3B8]">•</span>
+                <span className="text-[#0284C7]">EDUCATOR</span>
+              </div>
+            </div>
           </div>
 
-          {/* Main Hero Headline */}
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-[#0B2545] max-w-4xl mx-auto leading-[1.15]">
-            Managing a company shouldn&apos;t feel complicated.
+          {/* Center: Search Input */}
+          <div className="hidden lg:flex flex-1 max-w-md mx-2">
+            <form onSubmit={handleSearchSubmit} className="relative w-full">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search services, companies, forms"
+                className="w-full bg-[#F1F5F9] hover:bg-[#E2E8F0]/80 focus:bg-white text-xs text-[#0F172A] placeholder-[#64748B] pl-4 pr-9 py-2 rounded-full border border-[#CBD5E1] focus:border-[#0066CC] focus:ring-2 focus:ring-[#0066CC]/20 outline-none transition-all"
+              />
+              <button
+                type="submit"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-[#0B2545] transition-colors p-0.5"
+                aria-label="Search"
+              >
+                <Search className="w-3.5 h-3.5" />
+              </button>
+            </form>
+          </div>
+
+          {/* Right: Login / Register / Sign Out & Open Portal Buttons */}
+          <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
+            
+            {isAuthenticated ? (
+              <div className="flex items-center space-x-2">
+                <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-[#F1F5F9] border border-[#CBD5E1] text-xs text-[#0B2545] font-medium">
+                  <span className="w-2 h-2 rounded-full bg-[#16A34A]"></span>
+                  <span className="max-w-[130px] truncate">{profile?.full_name || user?.email || 'c.subanesh@gmail.com'}</span>
+                </div>
+
+                <button
+                  onClick={() => signOut()}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full border border-[#CBD5E1] hover:bg-[#FEF2F2] hover:border-[#DC2626]/30 text-[#DC2626] text-xs font-semibold transition-all"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Sign Out</span>
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/auth/login"
+                className="flex items-center space-x-1.5 px-3.5 sm:px-4 py-2 rounded-full border border-[#0066CC] bg-white hover:bg-[#EFF6FF] text-[#0066CC] text-xs font-semibold transition-all shadow-xs"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Login / Register</span>
+              </Link>
+            )}
+
+            {/* Open Portal Button */}
+            <Link
+              href={getProtectedUrl('/chat')}
+              className="flex items-center space-x-1.5 px-4 py-2 rounded-full bg-[#0B2545] hover:bg-[#07192F] text-white text-xs font-semibold transition-all shadow-sm group"
+            >
+              <span>Open Portal</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+
+          </div>
+
+        </div>
+
+      </header>
+
+      {/* Main Single-Viewport Page Container */}
+      <div className="relative z-10 w-full flex-1 flex flex-col justify-between items-center px-[clamp(14px,3vw,32px)] py-[clamp(12px,2vh,24px)] overflow-hidden">
+        
+        {/* 2. Hero Region */}
+        <main className="w-full max-w-[880px] my-auto flex flex-col items-center text-center py-[clamp(6px,1.5vh,16px)]">
+          
+          {/* Trust / Context Pill */}
+          <div
+            className="anim-reveal inline-flex items-center gap-2.5 bg-[#28282a] border border-white/40 px-3.5 py-1 rounded-full mb-[clamp(12px,2vh,20px)] backdrop-blur-md"
+            style={{ animationDelay: '0.05s' }}
+          >
+            <div className="flex items-center">
+              {/* Founder Avatar */}
+              <div className="w-[26px] h-[26px] bg-[#18181a] border border-white/40 rounded-full p-1 flex items-center justify-center">
+                <div className="w-full h-full bg-white rounded-full flex items-center justify-center text-black text-[9px]">
+                  <i className="fa-solid fa-user"></i>
+                </div>
+              </div>
+              {/* CA / CS Avatar */}
+              <div className="w-[26px] h-[26px] bg-[#18181a] border border-white/40 rounded-full p-1 flex items-center justify-center -ml-2">
+                <div className="w-full h-full bg-white rounded-full flex items-center justify-center text-black text-[9px]">
+                  <i className="fa-solid fa-user-tie"></i>
+                </div>
+              </div>
+              {/* AI Avatar */}
+              <div className="w-[26px] h-[26px] bg-[#18181a] border border-white/40 rounded-full p-1 flex items-center justify-center -ml-2">
+                <div className="w-full h-full bg-white rounded-full flex items-center justify-center text-black text-[9px]">
+                  <i className="fa-solid fa-bolt"></i>
+                </div>
+              </div>
+            </div>
+            <span className="text-[#c4c2c3] text-[clamp(11.5px,1.4vw,13px)] font-medium tracking-wide">
+              One workspace. Humans and AI.
+            </span>
+          </div>
+
+          {/* Solid White Display Headline */}
+          <h1 className="headline-responsive text-white mb-[clamp(12px,1.8vh,20px)] select-none">
+            <span className="block anim-reveal" style={{ animationDelay: '0.12s' }}>
+              Your Company.
+            </span>
+            <span className="block anim-reveal" style={{ animationDelay: '0.30s' }}>
+              Understood.
+            </span>
           </h1>
 
-          {/* Supporting Text */}
-          <p className="text-sm sm:text-lg text-[#475569] max-w-2xl mx-auto leading-relaxed">
-            Start a company, manage your compliance, track applications and get help when you need it. Future MCA brings everything together in one simple place.
+          {/* Subhead */}
+          <p
+            className="anim-reveal text-[#d0d0d0] text-[clamp(14px,1.8vw,17px)] font-normal leading-[1.55] opacity-85 max-w-[min(560px,92%)] mb-[clamp(18px,2.5vh,28px)]"
+            style={{ animationDelay: '0.45s' }}
+          >
+            Future MCA turns complex company compliance into simple conversations, guided workflows and secure context that AI agents can understand.
           </p>
 
-          {/* Hero CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+          {/* CTA Group */}
+          <div
+            className="anim-reveal flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto"
+            style={{ animationDelay: '0.60s' }}
+          >
             <Link
-              href="/onboarding"
-              className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-[#0B2545] hover:bg-[#07192F] text-white font-bold text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
+              href={getProtectedUrl('/onboarding')}
+              className="w-full sm:w-auto bg-white text-black text-[clamp(13.5px,1.4vw,14.5px)] font-semibold px-8 py-3 rounded-full shadow-[0_0_24px_rgba(255,255,255,0.18)] hover:shadow-[0_0_32px_rgba(255,255,255,0.3)] hover:-translate-y-0.5 hover:scale-[1.02] transition-all inline-flex items-center justify-center"
             >
-              <span>Get Started</span>
-              <ArrowRight className="w-4 h-4" />
+              Get Started
             </Link>
 
-            <a
-              href="#action-selector"
-              className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-white hover:bg-[#F8FAFC] text-[#0B2545] border-2 border-[#CBD5E1] hover:border-[#0B2545] font-bold text-sm transition-all"
+            <button
+              type="button"
+              onClick={() => setActiveModal('mcp')}
+              className="w-full sm:w-auto text-[#d0d0d0] hover:text-white border border-white/20 hover:border-white/50 hover:bg-white/5 text-[clamp(13px,1.3vw,14px)] font-medium px-5 py-2.5 rounded-full transition-all"
             >
-              Explore Services
-            </a>
+              Explore MCP
+            </button>
           </div>
 
-          {/* Audience Sub-tagline */}
-          <p className="text-xs text-[#64748B] pt-1">
-            Built for founders, business owners, directors and professionals.
-          </p>
+        </main>
 
-        </div>
-      </section>
-
-      {/* 3. MAIN HERO INTERACTION: "WHAT WOULD YOU LIKE TO DO?" */}
-      <section id="action-selector" className="py-16 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        {/* 3. Bottom Product Intelligence Footer */}
+        <footer
+          className="anim-reveal w-full max-w-[960px] grid grid-cols-2 md:grid-cols-4 gap-[clamp(12px,2.5vw,28px)] pt-[clamp(6px,1vh,12px)]"
+          style={{ animationDelay: '0.75s' }}
+        >
           
-          <div className="text-center space-y-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#0066CC]">
-              Action-First Experience
-            </h2>
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-[#0B2545]">
-              What would you like to do?
-            </h3>
-            <p className="text-xs sm:text-sm text-[#64748B] max-w-xl mx-auto">
-              Select your goal below. We will guide you through every step in plain language.
-            </p>
-          </div>
-
-          {/* 5 Main Action Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            
-            {/* Card 1: Start a Company */}
-            <div className="bg-[#F8FAFC] border-2 border-[#E2E8F0] hover:border-[#0B2545] rounded-2xl p-6 transition-all shadow-xs hover:shadow-md flex flex-col justify-between space-y-4 group">
-              <div className="space-y-3">
-                <div className="w-12 h-12 rounded-xl bg-white border border-[#CBD5E1] flex items-center justify-center text-2xl shadow-xs">
-                  🏢
-                </div>
-                <div>
-                  <h4 className="text-base font-bold text-[#0B2545] group-hover:text-[#0066CC] transition-colors">
-                    Start a Company
-                  </h4>
-                  <p className="text-xs text-[#475569] mt-1.5 leading-relaxed">
-                    Tell us about your business and we&apos;ll guide you through the process, structure, and required filings.
-                  </p>
-                </div>
-              </div>
-
-              <Link
-                href="/onboarding?intent=incorporation"
-                className="w-full py-2.5 px-4 rounded-xl bg-[#0B2545] hover:bg-[#0055A5] text-white font-bold text-xs flex items-center justify-center space-x-1.5 transition-colors"
-              >
-                <span>Start</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
+          {/* Capability 1: Start a Company */}
+          <Link
+            href={getProtectedUrl('/chat?query=I+want+to+start+a+company')}
+            className="flex flex-col text-left gap-0.5 group hover:opacity-100 transition-all p-2 -m-2 rounded-xl hover:bg-white/5 cursor-pointer"
+            title="Launch Guided Incorporation"
+          >
+            <span className="display-font text-white text-[clamp(14px,1.6vw,18px)] opacity-90 group-hover:scale-110 transition-transform origin-left">+</span>
+            <div className="text-white text-[clamp(12.5px,1.4vw,14px)] font-semibold group-hover:text-white flex items-center gap-1">
+              <span>Start a Company</span>
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px]">&rarr;</span>
             </div>
+            <div className="text-[#8e8e8e] group-hover:text-[#a8a8a8] text-[clamp(11px,1.2vw,12px)] leading-tight">Guided from idea to incorporation</div>
+          </Link>
 
-            {/* Card 2: Manage My Company */}
-            <div className="bg-[#F8FAFC] border-2 border-[#E2E8F0] hover:border-[#0B2545] rounded-2xl p-6 transition-all shadow-xs hover:shadow-md flex flex-col justify-between space-y-4 group">
-              <div className="space-y-3">
-                <div className="w-12 h-12 rounded-xl bg-white border border-[#CBD5E1] flex items-center justify-center text-2xl shadow-xs">
-                  📋
-                </div>
-                <div>
-                  <h4 className="text-base font-bold text-[#0B2545] group-hover:text-[#0066CC] transition-colors">
-                    Manage My Company
-                  </h4>
-                  <p className="text-xs text-[#475569] mt-1.5 leading-relaxed">
-                    View your company master information, active directors, documents, and important updates.
-                  </p>
-                </div>
-              </div>
-
-              <Link
-                href="/companies"
-                className="w-full py-2.5 px-4 rounded-xl bg-[#0B2545] hover:bg-[#0055A5] text-white font-bold text-xs flex items-center justify-center space-x-1.5 transition-colors"
-              >
-                <span>Open Company</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
+          {/* Capability 2: Know What's Due */}
+          <Link
+            href={getProtectedUrl('/compliance')}
+            className="flex flex-col text-left gap-0.5 group hover:opacity-100 transition-all p-2 -m-2 rounded-xl hover:bg-white/5 cursor-pointer"
+            title="View Compliance Deadlines & Schedules"
+          >
+            <span className="display-font text-white text-[clamp(14px,1.6vw,18px)] opacity-90 group-hover:scale-110 transition-transform origin-left">!</span>
+            <div className="text-white text-[clamp(12.5px,1.4vw,14px)] font-semibold group-hover:text-white flex items-center gap-1">
+              <span>Know What’s Due</span>
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px]">&rarr;</span>
             </div>
+            <div className="text-[#8e8e8e] group-hover:text-[#a8a8a8] text-[clamp(11px,1.2vw,12px)] leading-tight">Compliance explained in plain language</div>
+          </Link>
 
-            {/* Card 3: Check What I Need To Do */}
-            <div className="bg-[#F8FAFC] border-2 border-[#E2E8F0] hover:border-[#0B2545] rounded-2xl p-6 transition-all shadow-xs hover:shadow-md flex flex-col justify-between space-y-4 group">
-              <div className="space-y-3">
-                <div className="w-12 h-12 rounded-xl bg-white border border-[#CBD5E1] flex items-center justify-center text-2xl shadow-xs">
-                  📅
-                </div>
-                <div>
-                  <h4 className="text-base font-bold text-[#0B2545] group-hover:text-[#0066CC] transition-colors">
-                    Check What I Need To Do
-                  </h4>
-                  <p className="text-xs text-[#475569] mt-1.5 leading-relaxed">
-                    See upcoming statutory deadlines, overdue risks, and required actions needing your attention.
-                  </p>
-                </div>
-              </div>
-
-              <Link
-                href="/compliance"
-                className="w-full py-2.5 px-4 rounded-xl bg-[#0B2545] hover:bg-[#0055A5] text-white font-bold text-xs flex items-center justify-center space-x-1.5 transition-colors"
-              >
-                <span>Check Now</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
+          {/* Capability 3: File With Confidence */}
+          <Link
+            href={getProtectedUrl('/filings')}
+            className="flex flex-col text-left gap-0.5 group hover:opacity-100 transition-all p-2 -m-2 rounded-xl hover:bg-white/5 cursor-pointer"
+            title="Open e-Forms & Filing Hub"
+          >
+            <span className="display-font text-white text-[clamp(14px,1.6vw,18px)] opacity-90 group-hover:scale-110 transition-transform origin-left">&gt;</span>
+            <div className="text-white text-[clamp(12.5px,1.4vw,14px)] font-semibold group-hover:text-white flex items-center gap-1">
+              <span>File With Confidence</span>
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px]">&rarr;</span>
             </div>
+            <div className="text-[#8e8e8e] group-hover:text-[#a8a8a8] text-[clamp(11px,1.2vw,12px)] leading-tight">Forms, documents and validation in one flow</div>
+          </Link>
 
-            {/* Card 4: Track an Application */}
-            <div className="bg-[#F8FAFC] border-2 border-[#E2E8F0] hover:border-[#0B2545] rounded-2xl p-6 transition-all shadow-xs hover:shadow-md flex flex-col justify-between space-y-4 group">
-              <div className="space-y-3">
-                <div className="w-12 h-12 rounded-xl bg-white border border-[#CBD5E1] flex items-center justify-center text-2xl shadow-xs">
-                  🔎
-                </div>
-                <div>
-                  <h4 className="text-base font-bold text-[#0B2545] group-hover:text-[#0066CC] transition-colors">
-                    Track an Application
-                  </h4>
-                  <p className="text-xs text-[#475569] mt-1.5 leading-relaxed">
-                    Check the real-time progress, officer scrutiny, and approvals for your Service Request Number (SRN).
-                  </p>
-                </div>
-              </div>
-
-              <Link
-                href="/applications"
-                className="w-full py-2.5 px-4 rounded-xl bg-[#0B2545] hover:bg-[#0055A5] text-white font-bold text-xs flex items-center justify-center space-x-1.5 transition-colors"
-              >
-                <span>Track Application</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
+          {/* Capability 4: Connect Your AI */}
+          <Link
+            href={getProtectedUrl('/connect-ai')}
+            className="flex flex-col text-left gap-0.5 group hover:opacity-100 transition-all p-2 -m-2 rounded-xl hover:bg-white/5 cursor-pointer"
+            title="Connect Claude, ChatGPT, Cursor via MCP"
+          >
+            <span className="display-font text-white text-[clamp(14px,1.6vw,18px)] opacity-90 group-hover:scale-110 transition-transform origin-left">*</span>
+            <div className="text-white text-[clamp(12.5px,1.4vw,14px)] font-semibold group-hover:text-white flex items-center gap-1">
+              <span>Connect Your AI</span>
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px]">&rarr;</span>
             </div>
+            <div className="text-[#8e8e8e] group-hover:text-[#a8a8a8] text-[clamp(11px,1.2vw,12px)] leading-tight">Secure company context through MCP</div>
+          </Link>
 
-            {/* Card 5: I Need Help (Spans 2 cols on lg) */}
-            <div className="md:col-span-2 bg-gradient-to-br from-[#0B2545] to-[#07192F] text-white rounded-2xl p-6 transition-all shadow-md flex flex-col justify-between space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <span className="text-2xl">💬</span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#93C5FD] bg-[#003366] px-2 py-0.5 rounded">
-                    Plain Language Assistant
-                  </span>
-                </div>
-                <h4 className="text-lg font-bold">
-                  I Need Help — Tell us what you&apos;re trying to do
-                </h4>
-                <p className="text-xs text-[#94A3B8] leading-relaxed">
-                  No need to memorize form numbers. Type in plain English (e.g. <em>&quot;A director has resigned&quot;</em> or <em>&quot;We changed our office address&quot;</em>).
-                </p>
-              </div>
+        </footer>
 
-              <form onSubmit={handleHelpSubmit} className="space-y-3">
-                <div className="flex items-center bg-white/10 border border-white/20 rounded-xl overflow-hidden focus-within:border-[#93C5FD] transition-colors">
-                  <input
-                    type="text"
-                    value={helpInput}
-                    onChange={(e) => setHelpInput(e.target.value)}
-                    placeholder="e.g. A director has resigned. What should I do?"
-                    className="w-full bg-transparent text-xs text-white placeholder-white/50 px-4 py-2.5 outline-none"
-                  />
-                  <button
-                    type="submit"
-                    className="px-4 py-2.5 bg-[#0066CC] hover:bg-[#0055A5] text-white text-xs font-semibold shrink-0 transition-colors"
-                  >
-                    Ask
-                  </button>
-                </div>
+      </div>
 
-                {helpResponse && (
-                  <div className="p-3.5 bg-white/10 border border-white/20 rounded-xl space-y-2 text-xs text-[#E2E8F0] animate-in fade-in duration-150">
-                    <div className="font-bold text-[#93C5FD]">
-                      Guidance for: &quot;{helpResponse.query}&quot;
-                    </div>
-                    <ol className="space-y-1 pl-4 list-decimal text-[11px] text-white/90">
-                      {helpResponse.steps.map((st, i) => (
-                        <li key={i}>{st}</li>
-                      ))}
-                    </ol>
-                    <Link
-                      href={`/filings/new?query=${encodeURIComponent(helpResponse.query)}`}
-                      className="inline-flex items-center space-x-1 text-[#93C5FD] hover:underline font-semibold text-[11px] pt-1"
-                    >
-                      <span>Start Guided Preparation &rarr;</span>
-                    </Link>
-                  </div>
-                )}
-              </form>
-            </div>
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* 4. FEATURE HIGHLIGHT: "STARTING A COMPANY? START HERE." */}
-      <section className="py-16 bg-[#F8FAFC] border-y border-[#E2E8F0]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          
-          <div className="text-center space-y-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#0066CC]">
-              Guided Incorporation
-            </h2>
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-[#0B2545]">
-              Starting a company? Start here.
-            </h3>
-            <p className="text-xs sm:text-sm text-[#475569] max-w-xl mx-auto">
-              Prepare and guide your company creation journey step by step without legal jargon.
-            </p>
-          </div>
-
-          {/* Interactive Guided Flow Card */}
-          <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm p-6 sm:p-8 max-w-4xl mx-auto space-y-6">
-            
-            {/* Step 1: Entity Type Selector */}
-            <div className="space-y-3">
-              <label className="text-xs font-bold uppercase tracking-wider text-[#0B2545] block">
-                1. What would you like to create?
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                {[
-                  { id: 'pvt_ltd', label: 'Private Limited Company' },
-                  { id: 'llp', label: 'Limited Liability Partnership (LLP)' },
-                  { id: 'opc', label: 'One Person Company (OPC)' },
-                  { id: 'unsure', label: 'Not sure yet' }
-                ].map(opt => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setEntityType(opt.id as any)}
-                    className={`p-3 rounded-xl border text-xs font-semibold text-left transition-all ${
-                      entityType === opt.id
-                        ? 'bg-[#0B2545] border-[#0B2545] text-white shadow-xs'
-                        : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] hover:border-[#CBD5E1]'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Step 2: Company Details Form */}
-            <div className="space-y-3 border-t border-[#E2E8F0] pt-6">
-              <label className="text-xs font-bold uppercase tracking-wider text-[#0B2545] block">
-                2. Tell us a little about your business
-              </label>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-[11px] font-semibold text-[#475569] block mb-1">Proposed Business Name</label>
-                  <input
-                    type="text"
-                    value={companyNameInput}
-                    onChange={(e) => setCompanyNameInput(e.target.value)}
-                    className="w-full p-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs outline-none focus:border-[#0066CC]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-[#475569] block mb-1">What does your business do?</label>
-                  <input
-                    type="text"
-                    value={businessDescInput}
-                    onChange={(e) => setBusinessDescInput(e.target.value)}
-                    className="w-full p-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs outline-none focus:border-[#0066CC]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-[#475569] block mb-1">Number of Founders</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="15"
-                    value={foundersCountInput}
-                    onChange={(e) => setFoundersCountInput(e.target.value)}
-                    className="w-full p-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-xs outline-none focus:border-[#0066CC]"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Step 3: Transparent Breakdown Checklist */}
-            <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-5 space-y-3">
-              <div className="text-xs font-bold text-[#0B2545] uppercase tracking-wider">
-                Your Customized Roadmap for &quot;{companyNameInput || 'New Entity'}&quot;:
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="flex items-start space-x-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
-                  <div>
-                    <strong className="text-[#0F172A]">Structure: </strong>
-                    <span className="text-[#475569]">
-                      {entityType === 'pvt_ltd' ? 'Private Limited with separate legal entity status' :
-                       entityType === 'llp' ? 'LLP with flexible partner agreement' :
-                       entityType === 'opc' ? 'Solo Founder OPC with nominated successor' :
-                       'Guided structure assessment'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
-                  <div>
-                    <strong className="text-[#0F172A]">Documents Needed: </strong>
-                    <span className="text-[#475569]">PAN, Aadhaar, Bank Statement, Office Utility Bill</span>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
-                  <div>
-                    <strong className="text-[#0F172A]">Estimated Timeline: </strong>
-                    <span className="text-[#475569]">3 to 5 working days for name & certificate</span>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
-                  <div>
-                    <strong className="text-[#0F172A]">Immediate Next Step: </strong>
-                    <span className="text-[#475569]">Run name availability & trademark pre-check</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-2 flex justify-end">
-                <Link
-                  href={`/onboarding?name=${encodeURIComponent(companyNameInput)}&type=${entityType}`}
-                  className="px-5 py-2.5 rounded-lg bg-[#0B2545] hover:bg-[#07192F] text-white font-bold text-xs flex items-center space-x-1.5 transition-colors"
-                >
-                  <span>Begin Preparation Journey</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* 5. "JUST TELL US WHAT HAPPENED" */}
-      <section className="py-16 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          
-          <div className="text-center space-y-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#0066CC]">
-              Event-Driven Workflows
-            </h2>
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-[#0B2545]">
-              You don&apos;t need to know the form. Just tell us what happened.
-            </h3>
-            <p className="text-xs sm:text-sm text-[#64748B] max-w-xl mx-auto">
-              Real corporate events translated into clean, step-by-step guidance.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* Scenario 1 */}
-            <div className="bg-[#F8FAFC] border border-[#E2E8F0] hover:border-[#0066CC] rounded-2xl p-6 space-y-4 flex flex-col justify-between transition-all">
-              <div className="space-y-3">
-                <div className="p-3 bg-white border border-[#E2E8F0] rounded-xl text-xs font-semibold text-[#0F172A]">
-                  &ldquo;A director has resigned.&rdquo;
-                </div>
-                <div className="text-center text-[#94A3B8] text-xs font-bold">&darr;</div>
-                <div className="space-y-1.5">
-                  <div className="text-[11px] font-bold uppercase text-[#0066CC] tracking-wider">Future MCA:</div>
-                  <p className="text-xs text-[#475569] leading-relaxed">
-                    This may require updating your director information on the central register within 30 days. We&apos;ll guide you through the required board extract and intimation.
-                  </p>
-                </div>
-              </div>
-
-              <Link
-                href="/filings/new?intent=director-resigned"
-                className="w-full py-2 px-3 bg-white hover:bg-[#0B2545] hover:text-white border border-[#CBD5E1] text-[#0B2545] font-bold text-xs rounded-xl transition-all text-center block"
-              >
-                Continue &rarr;
-              </Link>
-            </div>
-
-            {/* Scenario 2 */}
-            <div className="bg-[#F8FAFC] border border-[#E2E8F0] hover:border-[#0066CC] rounded-2xl p-6 space-y-4 flex flex-col justify-between transition-all">
-              <div className="space-y-3">
-                <div className="p-3 bg-white border border-[#E2E8F0] rounded-xl text-xs font-semibold text-[#0F172A]">
-                  &ldquo;We changed our office address.&rdquo;
-                </div>
-                <div className="text-center text-[#94A3B8] text-xs font-bold">&darr;</div>
-                <div className="space-y-1.5">
-                  <div className="text-[11px] font-bold uppercase text-[#0066CC] tracking-wider">Future MCA:</div>
-                  <p className="text-xs text-[#475569] leading-relaxed">
-                    We&apos;ll help you understand what premises proof and utility bills are required to record the new registered office with the Registrar of Companies.
-                  </p>
-                </div>
-              </div>
-
-              <Link
-                href="/filings/new?intent=address-changed"
-                className="w-full py-2 px-3 bg-white hover:bg-[#0B2545] hover:text-white border border-[#CBD5E1] text-[#0B2545] font-bold text-xs rounded-xl transition-all text-center block"
-              >
-                Check Requirements &rarr;
-              </Link>
-            </div>
-
-            {/* Scenario 3 */}
-            <div className="bg-[#F8FAFC] border border-[#E2E8F0] hover:border-[#0066CC] rounded-2xl p-6 space-y-4 flex flex-col justify-between transition-all">
-              <div className="space-y-3">
-                <div className="p-3 bg-white border border-[#E2E8F0] rounded-xl text-xs font-semibold text-[#0F172A]">
-                  &ldquo;I haven&apos;t filed anything this year.&rdquo;
-                </div>
-                <div className="text-center text-[#94A3B8] text-xs font-bold">&darr;</div>
-                <div className="space-y-1.5">
-                  <div className="text-[11px] font-bold uppercase text-[#0066CC] tracking-wider">Future MCA:</div>
-                  <p className="text-xs text-[#475569] leading-relaxed">
-                    Let&apos;s check your company status, calculate any statutory penalty exposure, and organize your overdue annual filings in order of priority.
-                  </p>
-                </div>
-              </div>
-
-              <Link
-                href="/compliance"
-                className="w-full py-2 px-3 bg-white hover:bg-[#0B2545] hover:text-white border border-[#CBD5E1] text-[#0B2545] font-bold text-xs rounded-xl transition-all text-center block"
-              >
-                Check My Company &rarr;
-              </Link>
-            </div>
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* 6. ACTUAL PORTAL EXPERIENCE PREVIEW: "EVERYTHING ABOUT YOUR COMPANY, IN ONE PLACE." */}
-      <section className="py-16 bg-[#F8FAFC] border-y border-[#E2E8F0]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          
-          <div className="text-center space-y-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#0066CC]">
-              Calm & Clear Workspace
-            </h2>
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-[#0B2545]">
-              Everything about your company, in one place.
-            </h3>
-            <p className="text-xs sm:text-sm text-[#475569] max-w-xl mx-auto">
-              A serene dashboard designed to keep you informed without stress or confusing jargon.
-            </p>
-          </div>
-
-          {/* Realistic Portal Window Mockup */}
-          <div className="bg-white border-2 border-[#CBD5E1] rounded-2xl shadow-xl overflow-hidden max-w-5xl mx-auto">
-            
-            {/* Window Top Bar */}
-            <div className="bg-[#0B2545] text-white px-5 py-3 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#EF4444]"></span>
-                <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]"></span>
-                <span className="w-2.5 h-2.5 rounded-full bg-[#10B981]"></span>
-                <span className="text-[11px] font-mono text-[#94A3B8] ml-2">Future MCA Command Centre • Ziggers Private Limited</span>
-              </div>
-              <span className="text-[10px] font-mono bg-white/10 px-2 py-0.5 rounded text-[#93C5FD]">
-                Live Status
-              </span>
-            </div>
-
-            {/* Dashboard Content Mockup */}
-            <div className="p-6 sm:p-8 space-y-6">
-              
-              {/* Salutation Bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E2E8F0] pb-5">
-                <div>
-                  <h4 className="text-xl font-bold text-[#0B2545]">
-                    Good morning, Subanesh 👋
-                  </h4>
-                  <p className="text-xs text-[#64748B] mt-0.5">
-                    Here&apos;s what needs your attention for <strong className="text-[#0F172A]">Ziggers Private Limited</strong>.
-                  </p>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <span className="text-xs font-semibold px-3 py-1 bg-[#EFF6FF] text-[#0066CC] border border-[#BFDBFE] rounded-full">
-                    CIN: U72900KA2021PTC145892
-                  </span>
-                </div>
-              </div>
-
-              {/* 4 Summary Stat Pills */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-4 bg-[#FEF2F2] border border-[#FECACA] rounded-xl">
-                  <div className="text-2xl font-black text-[#DC2626]">3</div>
-                  <div className="text-xs font-bold text-[#991B1B] mt-0.5">Actions Needed</div>
-                </div>
-
-                <div className="p-4 bg-[#FFFBEB] border border-[#FDE68A] rounded-xl">
-                  <div className="text-2xl font-black text-[#D97706]">2</div>
-                  <div className="text-xs font-bold text-[#92400E] mt-0.5">Upcoming</div>
-                </div>
-
-                <div className="p-4 bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl">
-                  <div className="text-2xl font-black text-[#2563EB]">1</div>
-                  <div className="text-xs font-bold text-[#1E40AF] mt-0.5">In Progress</div>
-                </div>
-
-                <div className="p-4 bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl">
-                  <div className="text-2xl font-black text-[#16A34A]">✓</div>
-                  <div className="text-xs font-bold text-[#166534] mt-0.5">All Good</div>
-                </div>
-              </div>
-
-              {/* Priority Action Cards & Calendar Split */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
-                {/* Left: Priority Action Items (2 cols) */}
-                <div className="lg:col-span-2 space-y-3">
-                  <div className="text-xs font-bold uppercase tracking-wider text-[#0B2545]">
-                    Priority Items Requiring Attention:
-                  </div>
-
-                  {/* Priority 1 */}
-                  <div className="p-4 bg-white border-l-4 border-l-[#DC2626] border border-[#E2E8F0] rounded-xl flex items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FEF2F2] text-[#DC2626]">CRITICAL</span>
-                        <span className="text-xs font-bold text-[#0B2545]">Annual Financial Statements Filing (AOC-4)</span>
-                      </div>
-                      <p className="text-[11px] text-[#64748B]">Audited balance sheet submission due in 2 days.</p>
-                    </div>
-                    <Link
-                      href="/filings/new?form=AOC-4"
-                      className="px-3.5 py-1.5 bg-[#DC2626] hover:bg-[#B91C1C] text-white font-bold text-xs rounded-lg shrink-0 transition-colors"
-                    >
-                      Start Now
-                    </Link>
-                  </div>
-
-                  {/* Priority 2 */}
-                  <div className="p-4 bg-white border-l-4 border-l-[#D97706] border border-[#E2E8F0] rounded-xl flex items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FFFBEB] text-[#D97706]">ACTION REQUIRED</span>
-                        <span className="text-xs font-bold text-[#0B2545]">Director Information & KYC (DIR-3)</span>
-                      </div>
-                      <p className="text-[11px] text-[#64748B]">Annual web KYC verification for Director Ananya Sharma.</p>
-                    </div>
-                    <Link
-                      href="/filings/new?form=DIR-3"
-                      className="px-3.5 py-1.5 bg-[#0B2545] hover:bg-[#07192F] text-white font-bold text-xs rounded-lg shrink-0 transition-colors"
-                    >
-                      Continue
-                    </Link>
-                  </div>
-
-                  {/* Priority 3 */}
-                  <div className="p-4 bg-white border-l-4 border-l-[#CBD5E1] border border-[#E2E8F0] rounded-xl flex items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#F1F5F9] text-[#64748B]">UPCOMING</span>
-                        <span className="text-xs font-bold text-[#0B2545]">Annual Return of Company (MGT-7A)</span>
-                      </div>
-                      <p className="text-[11px] text-[#64748B]">Due in 18 days for small company compliance.</p>
-                    </div>
-                    <Link
-                      href="/filings/new?form=MGT-7"
-                      className="px-3.5 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#0B2545] font-bold text-xs rounded-lg shrink-0 transition-colors"
-                    >
-                      Prepare
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Right: Statutory Calendar Preview (1 col) */}
-                <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 space-y-3 text-xs">
-                  <div className="font-bold text-[#0B2545] flex items-center justify-between">
-                    <span>Statutory Calendar</span>
-                    <Calendar className="w-4 h-4 text-[#64748B]" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="p-2.5 bg-white border border-[#E2E8F0] rounded-lg">
-                      <div className="text-[10px] text-[#DC2626] font-bold font-mono">26 AUG 2026</div>
-                      <div className="font-bold text-[#0F172A] mt-0.5">AOC-4 Due Date</div>
-                      <div className="text-[10px] text-[#64748B]">Penalty ₹100/day after default</div>
-                    </div>
-
-                    <div className="p-2.5 bg-white border border-[#E2E8F0] rounded-lg">
-                      <div className="text-[10px] text-[#D97706] font-bold font-mono">30 SEP 2026</div>
-                      <div className="font-bold text-[#0F172A] mt-0.5">DIR-3 KYC Cutoff</div>
-                      <div className="text-[10px] text-[#64748B]">Fee ₹5,000 for delayed deactivation</div>
-                    </div>
-
-                    <div className="p-2.5 bg-white border border-[#E2E8F0] rounded-lg">
-                      <div className="text-[10px] text-[#0284C7] font-bold font-mono">29 NOV 2026</div>
-                      <div className="font-bold text-[#0F172A] mt-0.5">MGT-7A Return</div>
-                      <div className="text-[10px] text-[#64748B]">Routine statutory submission</div>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* 7. SIMPLE 3-STEP ONBOARDING */}
-      <section className="py-16 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-          
-          <div className="text-center space-y-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#0066CC]">
-              Simple Onboarding
-            </h2>
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-[#0B2545]">
-              Getting started is simple.
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-            
-            {/* Step 1 */}
-            <div className="p-6 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl space-y-3 relative text-center">
-              <div className="w-10 h-10 rounded-full bg-[#0B2545] text-white font-black text-sm flex items-center justify-center mx-auto">
-                1
-              </div>
-              <h4 className="text-base font-bold text-[#0B2545]">
-                Create your account
-              </h4>
-              <p className="text-xs text-[#475569] leading-relaxed">
-                Sign up securely using your email or existing credentials in less than 30 seconds.
-              </p>
-            </div>
-
-            {/* Step 2 */}
-            <div className="p-6 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl space-y-3 relative text-center">
-              <div className="w-10 h-10 rounded-full bg-[#0B2545] text-white font-black text-sm flex items-center justify-center mx-auto">
-                2
-              </div>
-              <h4 className="text-base font-bold text-[#0B2545]">
-                Tell us about your company
-              </h4>
-              <p className="text-xs text-[#475569] leading-relaxed">
-                Add your registered CIN or start fresh with our step-by-step incorporation guide.
-              </p>
-            </div>
-
-            {/* Step 3 */}
-            <div className="p-6 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl space-y-3 relative text-center">
-              <div className="w-10 h-10 rounded-full bg-[#0B2545] text-white font-black text-sm flex items-center justify-center mx-auto">
-                3
-              </div>
-              <h4 className="text-base font-bold text-[#0B2545]">
-                See what needs attention
-              </h4>
-              <p className="text-xs text-[#475569] leading-relaxed">
-                Future MCA organises your important actions, filings, and statutory calendar in one calm dashboard.
-              </p>
-            </div>
-
-          </div>
-
-          <div className="text-center pt-2">
-            <Link
-              href="/onboarding"
-              className="inline-flex items-center space-x-2 px-6 py-3 rounded-full bg-[#0B2545] hover:bg-[#07192F] text-white font-bold text-xs transition-colors"
+      {/* MCP Explainer Modal */}
+      {activeModal === 'mcp' && (
+        <div
+          onClick={() => setActiveModal(null)}
+          className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#111113] border border-white/15 rounded-3xl w-full max-w-[600px] p-7 sm:p-9 shadow-2xl relative text-left"
+          >
+            <button
+              onClick={() => setActiveModal(null)}
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs transition-colors"
             >
-              <span>Start in 30 Seconds</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
+              <i className="fa-solid fa-xmark"></i>
+            </button>
 
-        </div>
-      </section>
-
-      {/* 8. BUILT FOR DIFFERENT ROLES */}
-      <section className="py-16 bg-[#F8FAFC] border-y border-[#E2E8F0]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          
-          <div className="text-center space-y-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#0066CC]">
-              Designed for You
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#8e8e8e] mb-2">
+              Model Context Protocol (MCP)
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white mb-2">
+              Your company, available when you need it.
             </h2>
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-[#0B2545]">
-              Built for different people across Indian business.
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* Role 1: Business Owners */}
-            <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 space-y-4 shadow-xs">
-              <div className="w-10 h-10 rounded-xl bg-[#EFF6FF] text-[#0066CC] flex items-center justify-center font-bold text-sm">
-                <Briefcase className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-base font-bold text-[#0B2545]">For Business Owners</h4>
-                <p className="text-xs text-[#475569] mt-1 leading-relaxed">
-                  Understand what your company needs without having to learn the entire compliance handbook.
-                </p>
-              </div>
-              <ul className="space-y-2 text-xs text-[#0F172A] border-t border-[#E2E8F0] pt-3">
-                <li className="flex items-center space-x-2">
-                  <Check className="w-3.5 h-3.5 text-[#16A34A]" />
-                  <span>Start new companies with guided steps</span>
-                </li>
-                <li className="flex items-center space-x-2">
-                  <Check className="w-3.5 h-3.5 text-[#16A34A]" />
-                  <span>Track deadlines and avoid penalty surprises</span>
-                </li>
-                <li className="flex items-center space-x-2">
-                  <Check className="w-3.5 h-3.5 text-[#16A34A]" />
-                  <span>Store and organize statutory certificates</span>
-                </li>
-              </ul>
-            </div>
-
-            {/* Role 2: Directors */}
-            <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 space-y-4 shadow-xs">
-              <div className="w-10 h-10 rounded-xl bg-[#F0FDF4] text-[#16A34A] flex items-center justify-center font-bold text-sm">
-                <User className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-base font-bold text-[#0B2545]">For Company Directors</h4>
-                <p className="text-xs text-[#475569] mt-1 leading-relaxed">
-                  Stay informed about personal fiduciary responsibilities and statutory obligations connected to your DIN.
-                </p>
-              </div>
-              <ul className="space-y-2 text-xs text-[#0F172A] border-t border-[#E2E8F0] pt-3">
-                <li className="flex items-center space-x-2">
-                  <Check className="w-3.5 h-3.5 text-[#16A34A]" />
-                  <span>Monitor DIN and annual KYC compliance</span>
-                </li>
-                <li className="flex items-center space-x-2">
-                  <Check className="w-3.5 h-3.5 text-[#16A34A]" />
-                  <span>Track Digital Signature (DSC) expirations</span>
-                </li>
-                <li className="flex items-center space-x-2">
-                  <Check className="w-3.5 h-3.5 text-[#16A34A]" />
-                  <span>Receive director cessation & appointment alerts</span>
-                </li>
-              </ul>
-            </div>
-
-            {/* Role 3: CA / CS Professionals */}
-            <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 space-y-4 shadow-xs">
-              <div className="w-10 h-10 rounded-xl bg-[#F8FAFC] text-[#0B2545] border border-[#CBD5E1] flex items-center justify-center font-bold text-sm">
-                <Users className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-base font-bold text-[#0B2545]">For CA / CS Professionals</h4>
-                <p className="text-xs text-[#475569] mt-1 leading-relaxed">
-                  Manage multiple companies, client portfolios, and bulk risk matrices from a unified practice workspace.
-                </p>
-              </div>
-              <ul className="space-y-2 text-xs text-[#0F172A] border-t border-[#E2E8F0] pt-3">
-                <li className="flex items-center space-x-2">
-                  <Check className="w-3.5 h-3.5 text-[#16A34A]" />
-                  <span>Multi-client risk overview & compliance filters</span>
-                </li>
-                <li className="flex items-center space-x-2">
-                  <Check className="w-3.5 h-3.5 text-[#16A34A]" />
-                  <span>Automated pre-scrutiny & error diagnosis</span>
-                </li>
-                <li className="flex items-center space-x-2">
-                  <Check className="w-3.5 h-3.5 text-[#16A34A]" />
-                  <span>Rapid e-Form validation & attachment checklists</span>
-                </li>
-              </ul>
-            </div>
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* 9. FUTURE-READY SERVICES (MCP & AI ASSISTANTS AS A CONTROLLED FEATURE) */}
-      <section className="py-16 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          
-          <div className="text-center space-y-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#0066CC]">
-              Future-Ready Infrastructure
-            </h2>
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-[#0B2545]">
-              Designed for people, and ready for your AI tools.
-            </h3>
-            <p className="text-xs sm:text-sm text-[#475569] max-w-2xl mx-auto leading-relaxed">
-              Future MCA is designed not only for people, but also for the next generation of AI assistants. Connect your tools to securely query information you choose to share.
+            <p className="text-xs sm:text-sm text-[#a8a8a8] leading-relaxed mb-6">
+              Future MCA gives your authorised AI assistant structured access to the company context you choose to share.
             </p>
-          </div>
 
-          <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-6 sm:p-8 max-w-4xl mx-auto space-y-6">
-            
-            {/* 3 Compatible Clients */}
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <div className="px-4 py-2 bg-white border border-[#CBD5E1] rounded-full text-xs font-bold text-[#0B2545] shadow-xs flex items-center space-x-1.5">
-                <Cpu className="w-3.5 h-3.5 text-[#0066CC]" />
-                <span>Anthropic Claude</span>
+            {/* Architecture Visual Flow */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-2.5 mb-5 text-xs">
+              <div className="flex items-center justify-between bg-[#18181b] border border-white/10 p-3 rounded-xl">
+                <span className="text-[#94a3b8]">Future MCA Workspace</span>
+                <strong className="text-white font-mono">Single Source of Truth</strong>
               </div>
-              <div className="px-4 py-2 bg-white border border-[#CBD5E1] rounded-full text-xs font-bold text-[#0B2545] shadow-xs flex items-center space-x-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#16A34A]" />
-                <span>Cursor IDE</span>
+              <div className="text-center text-[#666666] text-[11px] font-mono">&darr; Secure Authentication & Scopes</div>
+              <div className="flex items-center justify-between bg-[#18181b] border border-white/10 p-3 rounded-xl">
+                <span className="text-[#94a3b8]">Model Context Protocol (MCP)</span>
+                <strong className="text-white font-mono">Remote JSON-RPC 2.0 Server</strong>
               </div>
-              <div className="px-4 py-2 bg-white border border-[#CBD5E1] rounded-full text-xs font-bold text-[#0B2545] shadow-xs flex items-center space-x-1.5">
-                <Layers className="w-3.5 h-3.5 text-[#D97706]" />
-                <span>Windsurf & Custom Agents</span>
-              </div>
-            </div>
-
-            {/* Controlled Action Mockup */}
-            <div className="bg-white border border-[#CBD5E1] rounded-xl p-5 space-y-4">
-              <div className="text-xs font-bold text-[#0B2545] uppercase tracking-wider flex items-center space-x-2">
-                <ShieldCheck className="w-4 h-4 text-[#16A34A]" />
-                <span>Human-In-The-Loop Safety Principle:</span>
-              </div>
-              <p className="text-xs text-[#475569] leading-relaxed">
-                Future MCA can prepare actions and draft statutory submissions. <strong>You always review and authorize</strong> before anything is changed.
-              </p>
-
-              <div className="p-4 bg-[#F1F5F9] border border-[#CBD5E1] rounded-xl space-y-3 text-xs">
-                <div className="flex items-center justify-between text-[#0F172A]">
-                  <span className="font-bold">Proposed Action from Connected Assistant:</span>
-                  <span className="text-[10px] font-mono bg-white px-2 py-0.5 rounded border border-[#CBD5E1]">OAuth 2.1 Verified</span>
-                </div>
-                <div className="text-[11px] text-[#475569]">
-                  Change: <strong>Director cessation intimation (DIR-12)</strong> • Entity: <strong>Ziggers Private Limited</strong>
-                </div>
-                <div className="flex items-center space-x-2 pt-1">
-                  <button className="px-3.5 py-1.5 bg-[#0B2545] text-white text-xs font-semibold rounded-lg">
-                    Confirm & Proceed
-                  </button>
-                  <button className="px-3.5 py-1.5 bg-white border border-[#CBD5E1] text-[#475569] text-xs font-semibold rounded-lg">
-                    Review Details
-                  </button>
-                </div>
+              <div className="text-center text-[#666666] text-[11px] font-mono">&darr; Compatible AI Assistants</div>
+              <div className="flex items-center justify-between bg-[#18181b] border border-white/10 p-3 rounded-xl">
+                <span className="text-[#94a3b8]">Claude &bull; ChatGPT &bull; Cursor</span>
+                <strong className="text-[#4ade80] font-mono">Authorised Context & Actions</strong>
               </div>
             </div>
 
-            <div className="text-center pt-2">
-              <Link
-                href="/connect-ai"
-                className="text-xs font-bold text-[#0066CC] hover:underline flex items-center justify-center space-x-1"
-              >
-                <span>Learn how to connect Claude or Cursor &rarr;</span>
-              </Link>
+            <div className="bg-[#08080a] border border-white/10 rounded-xl p-3 font-mono text-xs text-[#e2e8f0] flex items-center justify-between mb-5">
+              <span>Endpoint: https://mca-portal-ten.vercel.app/api/mcp</span>
+              <span className="text-[10px] text-[#4ade80] bg-[#4ade80]/10 px-2 py-0.5 rounded">SSE / HTTP</span>
             </div>
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* 10. OFFICIAL TRUST SECTION (DEEP MCA NAVY) */}
-      <section className="bg-[#0B2545] text-white py-16">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-          
-          <div className="text-center space-y-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#93C5FD]">
-              Trust & Governance
-            </h2>
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-white">
-              Institutional security, modern simplicity.
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            
-            {/* Pillar 1 */}
-            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-              <ShieldCheck className="w-6 h-6 text-[#93C5FD]" />
-              <h4 className="text-sm font-bold text-white">Secure & Trusted</h4>
-              <p className="text-xs text-[#94A3B8] leading-relaxed">
-                Government-grade authentication, row-level tenant isolation, and strict access controls.
-              </p>
-            </div>
-
-            {/* Pillar 2 */}
-            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-              <Compass className="w-6 h-6 text-[#93C5FD]" />
-              <h4 className="text-sm font-bold text-white">Simple to Use</h4>
-              <p className="text-xs text-[#94A3B8] leading-relaxed">
-                Designed for ordinary citizens and first-time founders, not just compliance experts.
-              </p>
-            </div>
-
-            {/* Pillar 3 */}
-            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-              <Calendar className="w-6 h-6 text-[#93C5FD]" />
-              <h4 className="text-sm font-bold text-white">Stay Updated</h4>
-              <p className="text-xs text-[#94A3B8] leading-relaxed">
-                See upcoming filing deadlines, penalty projections, and statutory cutoffs in one clear view.
-              </p>
-            </div>
-
-            {/* Pillar 4 */}
-            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-              <Users className="w-6 h-6 text-[#93C5FD]" />
-              <h4 className="text-sm font-bold text-white">Built for Everyone</h4>
-              <p className="text-xs text-[#94A3B8] leading-relaxed">
-                Tailored journeys for founders, business owners, individual directors, and CA/CS professionals.
-              </p>
-            </div>
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* 11. FINAL CONFIDENT CTA */}
-      <section className="py-20 bg-gradient-to-b from-white to-[#F8FAFC] border-b border-[#E2E8F0]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
-          
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-[#0B2545] tracking-tight">
-            Your company. Made easier to manage.
-          </h2>
-
-          <p className="text-sm sm:text-base text-[#475569] max-w-xl mx-auto leading-relaxed">
-            Whether you&apos;re starting your first company or managing several, Future MCA helps you understand what to do next.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-            <Link
-              href="/onboarding"
-              className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#0B2545] hover:bg-[#07192F] text-white font-bold text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
-            >
-              <span>Get Started</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
 
             <Link
-              href="/overview"
-              className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-white hover:bg-[#F8FAFC] text-[#0B2545] border-2 border-[#CBD5E1] hover:border-[#0B2545] font-bold text-sm transition-all"
+              href={getProtectedUrl('/connect-ai')}
+              className="w-full block py-3 bg-white hover:bg-[#e6e6e6] text-black font-semibold text-center text-xs sm:text-sm rounded-xl transition-colors"
             >
-              Explore Future MCA
+              Open AI Connection Centre &rarr;
             </Link>
           </div>
-
-          <p className="text-[11px] text-[#64748B]">
-            A new way to experience corporate services.
-          </p>
-
         </div>
-      </section>
-
-      {/* 12. OFFICIAL FOOTER */}
-      <footer className="bg-[#0B2545] text-[#94A3B8] text-xs border-t border-[#081B33]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
-          
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-8 border-b border-white/10">
-            <div className="flex items-center space-x-3">
-              <AshokaEmblem className="w-8 h-11 brightness-200" />
-              <div>
-                <div className="text-white font-bold text-sm">Ministry of Corporate Affairs</div>
-                <div className="text-[#64748B] text-[11px]">Government of India • Next Gen Portal</div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-4 text-xs">
-              <Link href="/companies" className="hover:text-white transition-colors">Master Data</Link>
-              <Link href="/compliance" className="hover:text-white transition-colors">Statutory Deadlines</Link>
-              <Link href="/diagnostics" className="hover:text-white transition-colors">Error Diagnostics</Link>
-              <Link href="/connect-ai" className="hover:text-white transition-colors">AI & MCP Services</Link>
-              <Link href="/system-status" className="hover:text-white transition-colors">System Health</Link>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px]">
-            <p>
-              © 2026 Ministry of Corporate Affairs, Government of India. All Rights Reserved.
-            </p>
-            <div className="flex items-center space-x-4">
-              <span>Privacy Policy</span>
-              <span>Terms of Service</span>
-              <span>Security & Audit</span>
-            </div>
-          </div>
-
-        </div>
-      </footer>
+      )}
 
     </div>
   );

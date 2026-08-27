@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { 
   Sparkles, 
@@ -16,13 +17,16 @@ import {
   Layers, 
   Activity, 
   Code,
-  Cpu 
+  Cpu,
+  Bot,
+  Briefcase
 } from 'lucide-react';
 
 export function Navbar() {
+  const router = useRouter();
   const { 
     user,
-    profile,
+    profile, 
     role, 
     setRole, 
     workspaces,
@@ -49,20 +53,30 @@ export function Navbar() {
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
   const displayInitial = displayName.charAt(0).toUpperCase();
 
+  const handleSwitchPersona = async (targetRole: 'founder' | 'professional') => {
+    await setRole(targetRole);
+    setIsRoleDropdownOpen(false);
+    if (targetRole === 'founder') {
+      router.push('/chat');
+    } else {
+      router.push('/overview');
+    }
+  };
+
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-[#E5E5E5] h-14">
+    <header className="sticky top-0 z-40 bg-white border-b border-[#CBD5E1] h-14 font-sans">
       <div className="flex items-center justify-between h-full px-4 lg:px-6">
         
         {/* Left: Brand & Company Selector */}
         <div className="flex items-center space-x-6">
           <Link href="/" className="flex items-center space-x-2.5 group">
-            <div className="w-7 h-7 rounded bg-black text-white flex items-center justify-center font-semibold text-xs tracking-wider">
+            <div className="w-7 h-7 rounded-lg bg-[#0B2545] text-white flex items-center justify-center font-bold text-xs tracking-wider">
               MCA
             </div>
-            <span className="font-semibold text-sm tracking-tight text-black group-hover:text-[#2563EB] transition-colors">
+            <span className="font-bold text-sm tracking-tight text-[#0B2545] group-hover:text-[#0066CC] transition-colors">
               Future MCA
             </span>
-            <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-[#F7F7F5] text-[#525252] border border-[#E5E5E5]">
+            <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-[#EFF6FF] text-[#0066CC] border border-[#BFDBFE] font-bold">
               Gov 2.0
             </span>
           </Link>
@@ -71,20 +85,20 @@ export function Navbar() {
           <div className="relative hidden md:block">
             <button
               onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
-              className="flex items-center space-x-2 px-2.5 py-1 text-xs font-medium bg-[#F7F7F5] hover:bg-[#EFF6FF] border border-[#E5E5E5] hover:border-[#2563EB] rounded transition-all text-[#0A0A0A]"
+              className="flex items-center space-x-2 px-2.5 py-1 text-xs font-semibold bg-[#F8FAFC] hover:bg-[#EFF6FF] border border-[#CBD5E1] hover:border-[#0B2545] rounded-xl transition-all text-[#0F172A]"
             >
-              <Building2 className="w-3.5 h-3.5 text-[#525252]" />
+              <Building2 className="w-3.5 h-3.5 text-[#64748B]" />
               <span className="max-w-[180px] truncate font-medium">
                 {selectedCompany?.name || 'Select Company'}
               </span>
-              <ChevronDown className="w-3 h-3 text-[#737373]" />
+              <ChevronDown className="w-3 h-3 text-[#64748B]" />
             </button>
 
             {isCompanyDropdownOpen && (
-              <div className="absolute left-0 mt-1.5 w-72 bg-white border border-[#E5E5E5] rounded-lg shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
-                <div className="px-3 py-1 text-[11px] font-medium text-[#737373] uppercase tracking-wider flex items-center justify-between">
-                  <span>Workspace Companies</span>
-                  <span className="text-[10px] text-[#2563EB] font-mono">{allCompanies.length} Active</span>
+              <div className="absolute left-0 mt-1.5 w-72 bg-white border border-[#CBD5E1] rounded-xl shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                <div className="px-3 py-1 text-[11px] font-bold text-[#64748B] uppercase tracking-wider flex items-center justify-between">
+                  <span>Workspace Entities</span>
+                  <span className="text-[10px] text-[#0066CC] font-mono">{allCompanies.length} Active</span>
                 </div>
                 {allCompanies.map(c => (
                   <button
@@ -93,23 +107,23 @@ export function Navbar() {
                       setSelectedCompany(c);
                       setIsCompanyDropdownOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-[#F7F7F5] transition-colors"
+                    className="w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-[#F8FAFC] transition-colors"
                   >
                     <div>
-                      <div className="font-medium text-[#0A0A0A]">{c.name}</div>
-                      <div className="text-[11px] text-[#737373] font-mono">{c.cin}</div>
+                      <div className="font-semibold text-[#0F172A]">{c.name}</div>
+                      <div className="text-[10px] text-[#64748B] font-mono">{c.cin}</div>
                     </div>
                     {selectedCompany?.id === c.id && (
-                      <Check className="w-4 h-4 text-[#2563EB]" />
+                      <Check className="w-4 h-4 text-[#16A34A]" />
                     )}
                   </button>
                 ))}
                 
-                <div className="p-2 border-t border-[#E5E5E5] mt-1">
+                <div className="p-2 border-t border-[#E2E8F0] mt-1">
                   <Link
                     href="/companies"
                     onClick={() => setIsCompanyDropdownOpen(false)}
-                    className="block text-center py-1 text-xs text-[#2563EB] hover:underline font-medium"
+                    className="block text-center py-1 text-xs text-[#0066CC] hover:underline font-bold"
                   >
                     + Manage All Companies
                   </Link>
@@ -119,139 +133,120 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Center/Right: Persona Switcher, Quick Search & AI Launcher */}
+        {/* Right: Persona Switcher, Search, AI Launcher, User Profile */}
         <div className="flex items-center space-x-3">
           
-          {/* Workspace Persona Switcher */}
+          {/* Workspace Persona Switcher Dropdown */}
           <div className="relative">
             <button
               onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-              className="flex items-center space-x-1.5 px-2.5 py-1 text-xs rounded border border-[#E5E5E5] bg-white hover:bg-[#F7F7F5] text-[#0A0A0A]"
+              className="flex items-center space-x-1.5 px-3 py-1.5 text-xs rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] hover:border-[#0B2545] text-[#0B2545] font-bold shadow-xs transition-all"
             >
-              <span className="w-2 h-2 rounded-full bg-[#2563EB]"></span>
-              <span className="font-medium">
-                {role === 'founder' ? 'Founder Workspace' : 'CA / CS Professional'}
+              {role === 'founder' ? (
+                <Bot className="w-3.5 h-3.5 text-[#0066CC]" />
+              ) : (
+                <Briefcase className="w-3.5 h-3.5 text-[#16A34A]" />
+              )}
+              <span>
+                {role === 'founder' ? 'Founder Chat' : 'Professional UI'}
               </span>
-              <ChevronDown className="w-3 h-3 text-[#737373]" />
+              <ChevronDown className="w-3 h-3 text-[#64748B]" />
             </button>
 
             {isRoleDropdownOpen && (
-              <div className="absolute right-0 mt-1.5 w-64 bg-white border border-[#E5E5E5] rounded shadow-lg py-1.5 z-50">
-                <div className="px-3 py-1 text-[11px] font-medium text-[#737373] uppercase tracking-wider">
-                  Select Workspace Persona
+              <div className="absolute right-0 mt-1.5 w-72 bg-white border border-[#CBD5E1] rounded-2xl shadow-xl py-2 z-50 animate-in fade-in duration-100">
+                <div className="px-3.5 py-1 text-[10px] font-bold text-[#64748B] uppercase tracking-wider">
+                  Switch Primary Workspace View
                 </div>
+                
+                {/* Option 1: Founder Chat */}
                 <button
-                  onClick={() => {
-                    setRole('founder');
-                    setIsRoleDropdownOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-[#F7F7F5] transition-colors"
+                  onClick={() => handleSwitchPersona('founder')}
+                  className="w-full text-left px-3.5 py-2.5 hover:bg-[#F8FAFC] transition-colors flex items-start justify-between"
                 >
-                  <div className="font-medium text-[#0A0A0A] flex items-center justify-between">
-                    <span>Business Owner / Founder</span>
-                    {role === 'founder' && <Check className="w-3.5 h-3.5 text-[#2563EB]" />}
+                  <div className="space-y-0.5">
+                    <div className="font-bold text-xs text-[#0B2545] flex items-center space-x-1.5">
+                      <Bot className="w-3.5 h-3.5 text-[#0066CC]" />
+                      <span>Business Owner Assistant</span>
+                    </div>
+                    <p className="text-[11px] text-[#64748B]">
+                      Conversational dashboard at <code className="text-[#0066CC]">/chat</code>
+                    </p>
                   </div>
-                  <div className="text-[11px] text-[#737373]">Intent-first, guided workflows & simple actions.</div>
+                  {role === 'founder' && <Check className="w-4 h-4 text-[#0066CC] shrink-0 mt-0.5" />}
                 </button>
+
+                {/* Option 2: Professional Operations */}
                 <button
-                  onClick={() => {
-                    setRole('professional');
-                    setIsRoleDropdownOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-[#F7F7F5] transition-colors border-t border-[#E5E5E5]"
+                  onClick={() => handleSwitchPersona('professional')}
+                  className="w-full text-left px-3.5 py-2.5 hover:bg-[#F8FAFC] transition-colors border-t border-[#E2E8F0] flex items-start justify-between"
                 >
-                  <div className="font-medium text-[#0A0A0A] flex items-center justify-between">
-                    <span>CA / CS Professional</span>
-                    {role === 'professional' && <Check className="w-3.5 h-3.5 text-[#2563EB]" />}
+                  <div className="space-y-0.5">
+                    <div className="font-bold text-xs text-[#0B2545] flex items-center space-x-1.5">
+                      <Briefcase className="w-3.5 h-3.5 text-[#16A34A]" />
+                      <span>CA / CS Professional UI</span>
+                    </div>
+                    <p className="text-[11px] text-[#64748B]">
+                      Operations dashboard at <code className="text-[#0066CC]">/overview</code>
+                    </p>
                   </div>
-                  <div className="text-[11px] text-[#737373]">Multi-client risk matrix, form power tools & bulk checks.</div>
+                  {role === 'professional' && <Check className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />}
                 </button>
               </div>
             )}
           </div>
 
-          {/* Search Trigger */}
+          {/* Quick Search */}
           <button
             onClick={() => setIsSearchOpen(true)}
-            className="flex items-center space-x-2 px-3 py-1 text-xs text-[#737373] bg-[#F7F7F5] hover:bg-[#EFF6FF] border border-[#E5E5E5] rounded transition-all"
+            className="flex items-center space-x-2 px-3 py-1.5 text-xs text-[#64748B] bg-[#F8FAFC] hover:bg-[#EFF6FF] border border-[#CBD5E1] rounded-xl transition-all"
           >
-            <Search className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Search CIN, Form, or Rule...</span>
-            <kbd className="hidden sm:inline font-mono text-[10px] bg-white px-1 py-0.5 border border-[#E5E5E5] rounded">⌘K</kbd>
+            <Search className="w-3.5 h-3.5 text-[#64748B]" />
+            <span className="hidden sm:inline">Search CIN or Form...</span>
+            <kbd className="hidden sm:inline font-mono text-[10px] bg-white px-1.5 py-0.5 border border-[#CBD5E1] rounded shadow-xs">⌘K</kbd>
           </button>
 
-          {/* Contextual Ask AI Button */}
-          <button
-            onClick={() => setIsAiDrawerOpen(true)}
-            className="flex items-center space-x-1.5 px-3 py-1 text-xs font-medium bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded transition-colors"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span className="font-medium">Ask AI</span>
-          </button>
-
-          {/* User Profile Dropdown */}
+          {/* User Profile */}
           <div className="relative">
             <button
               onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
-              className="w-7 h-7 rounded-full bg-black text-white flex items-center justify-center text-xs font-bold hover:opacity-90 transition-opacity"
+              className="w-8 h-8 rounded-full bg-[#0B2545] text-white flex items-center justify-center text-xs font-bold hover:bg-[#07192F] transition-colors shadow-xs"
             >
               {displayInitial}
             </button>
 
             {isUserDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white border border-[#E5E5E5] rounded-lg shadow-xl py-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
-                <div className="px-3 py-2 border-b border-[#E5E5E5]">
-                  <div className="font-bold text-black">{displayName}</div>
-                  <div className="text-[11px] text-[#737373] truncate">{user?.email || 'Authenticated User'}</div>
+              <div className="absolute right-0 mt-1.5 w-56 bg-white border border-[#CBD5E1] rounded-xl shadow-xl py-1.5 z-50">
+                <div className="px-3 py-2 border-b border-[#E2E8F0]">
+                  <div className="font-bold text-xs text-[#0B2545]">{displayName}</div>
+                  <div className="text-[11px] text-[#64748B] truncate">{user?.email || 'c.subanesh@gmail.com'}</div>
                 </div>
 
-                <div className="py-1">
-                  <Link
-                    href="/connect-ai"
-                    onClick={() => setIsUserDropdownOpen(false)}
-                    className="px-3 py-2 flex items-center space-x-2 text-[#0A0A0A] hover:bg-[#F7F7F5] transition-colors"
-                  >
-                    <Cpu className="w-3.5 h-3.5 text-[#2563EB]" />
-                    <span>Connect AI Clients (MCP)</span>
-                  </Link>
-                  <Link
-                    href="/settings/developer"
-                    onClick={() => setIsUserDropdownOpen(false)}
-                    className="px-3 py-2 flex items-center space-x-2 text-[#0A0A0A] hover:bg-[#F7F7F5] transition-colors"
-                  >
-                    <Code className="w-3.5 h-3.5 text-[#737373]" />
-                    <span>Developer Sandbox</span>
-                  </Link>
-                  <Link
-                    href="/system-status"
-                    onClick={() => setIsUserDropdownOpen(false)}
-                    className="px-3 py-2 flex items-center space-x-2 text-[#0A0A0A] hover:bg-[#F7F7F5] transition-colors"
-                  >
-                    <Activity className="w-3.5 h-3.5 text-[#16A34A]" />
-                    <span>System Status</span>
-                  </Link>
-                  <Link
-                    href="/settings"
-                    onClick={() => setIsUserDropdownOpen(false)}
-                    className="px-3 py-2 flex items-center space-x-2 text-[#0A0A0A] hover:bg-[#F7F7F5] transition-colors"
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5 text-[#737373]" />
-                    <span>Settings</span>
-                  </Link>
-                </div>
+                <Link
+                  href="/settings"
+                  onClick={() => setIsUserDropdownOpen(false)}
+                  className="block px-3 py-2 text-xs text-[#334155] hover:bg-[#F8FAFC] font-medium"
+                >
+                  Workspace Settings
+                </Link>
 
-                <div className="border-t border-[#E5E5E5] pt-1">
-                  <button
-                    onClick={() => {
-                      setIsUserDropdownOpen(false);
-                      signOut();
-                    }}
-                    className="w-full px-3 py-2 text-left text-[#DC2626] hover:bg-[#FEF2F2] flex items-center space-x-2 transition-colors"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Sign Out</span>
-                  </button>
-                </div>
+                <Link
+                  href="/connect-ai"
+                  onClick={() => setIsUserDropdownOpen(false)}
+                  className="block px-3 py-2 text-xs text-[#334155] hover:bg-[#F8FAFC] font-medium"
+                >
+                  Connected MCP Clients
+                </Link>
+
+                <div className="border-t border-[#E2E8F0] my-1"></div>
+
+                <button
+                  onClick={() => signOut()}
+                  className="w-full text-left px-3 py-1.5 text-xs text-[#DC2626] hover:bg-[#FEF2F2] font-semibold flex items-center space-x-1.5"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sign Out</span>
+                </button>
               </div>
             )}
           </div>
@@ -260,74 +255,59 @@ export function Navbar() {
 
       </div>
 
-      {/* Quick Search Modal */}
+      {/* Global Quick Search Modal */}
       {isSearchOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-20 px-4">
-          <div className="bg-white border border-[#E5E5E5] rounded-lg shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center px-4 border-b border-[#E5E5E5]">
-              <Search className="w-4 h-4 text-[#737373]" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search companies, CIN, directors, forms (AOC-4, DIR-12)..."
-                className="w-full px-3 py-3 text-sm outline-none text-[#0A0A0A] placeholder-[#737373]"
-                autoFocus
-              />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-start justify-center pt-20 p-4 animate-in fade-in duration-100">
+          <div className="bg-white border border-[#CBD5E1] rounded-2xl shadow-2xl max-w-xl w-full p-4 space-y-3">
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
+              <div className="flex items-center space-x-2 w-full">
+                <Search className="w-4 h-4 text-[#64748B]" />
+                <input
+                  type="text"
+                  autoFocus
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search entities, forms (DIR-12, AOC-4), or laws..."
+                  className="w-full text-sm outline-none text-[#0F172A]"
+                />
+              </div>
               <button
                 onClick={() => setIsSearchOpen(false)}
-                className="text-xs text-[#737373] hover:text-black font-medium"
+                className="text-xs text-[#64748B] hover:text-black font-bold"
               >
                 ESC
               </button>
             </div>
 
-            <div className="max-h-72 overflow-y-auto p-2">
-              <div className="text-[11px] font-medium text-[#737373] px-2 py-1 uppercase">Companies</div>
-              {filteredCompanies.map(c => (
-                <Link
-                  key={c.id}
-                  href={`/companies/${c.cin}`}
-                  onClick={() => {
-                    setSelectedCompany(c);
-                    setIsSearchOpen(false);
-                  }}
-                  className="flex items-center justify-between px-3 py-2 text-xs rounded hover:bg-[#F7F7F5] transition-colors"
-                >
-                  <div>
-                    <div className="font-medium text-[#0A0A0A]">{c.name}</div>
-                    <div className="text-[11px] text-[#737373] font-mono">{c.cin}</div>
-                  </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#EFF6FF] text-[#2563EB] font-medium">
-                    {c.status}
-                  </span>
-                </Link>
-              ))}
-
-              <div className="text-[11px] font-medium text-[#737373] px-2 py-1 mt-2 uppercase">Quick MCA Form Workflows</div>
+            <div className="max-h-60 overflow-y-auto space-y-1 text-xs">
+              <div className="text-[10px] font-bold text-[#64748B] uppercase px-2 py-1">Quick Suggestions</div>
               <Link
-                href="/filings/new?intent=director-resigned"
+                href="/chat"
                 onClick={() => setIsSearchOpen(false)}
-                className="flex items-center justify-between px-3 py-2 text-xs rounded hover:bg-[#F7F7F5] transition-colors"
+                className="p-2 hover:bg-[#EFF6FF] rounded-lg block text-[#0B2545] font-semibold"
               >
-                <span className="font-medium text-[#0A0A0A]">Director Resignation Workflow</span>
-                <span className="text-[11px] text-[#525252] font-mono">DIR-12</span>
+                🤖 Ask Future MCA in plain English &rarr;
               </Link>
               <Link
-                href="/filings/new?intent=address-changed"
+                href="/filings/new?form=DIR-12"
                 onClick={() => setIsSearchOpen(false)}
-                className="flex items-center justify-between px-3 py-2 text-xs rounded hover:bg-[#F7F7F5] transition-colors"
+                className="p-2 hover:bg-[#F8FAFC] rounded-lg block text-[#0F172A]"
               >
-                <span className="font-medium text-[#0A0A0A]">Change Registered Office Address</span>
-                <span className="text-[11px] text-[#525252] font-mono">INC-22</span>
+                📄 Form DIR-12 (Director Appointment / Resignation)
               </Link>
               <Link
-                href="/diagnostics"
+                href="/filings/new?form=AOC-4"
                 onClick={() => setIsSearchOpen(false)}
-                className="flex items-center justify-between px-3 py-2 text-xs rounded hover:bg-[#F7F7F5] transition-colors"
+                className="p-2 hover:bg-[#F8FAFC] rounded-lg block text-[#0F172A]"
               >
-                <span className="font-medium text-[#0A0A0A]">Something Went Wrong? Error Diagnosis</span>
-                <span className="text-[11px] text-[#2563EB]">Diagnostics</span>
+                📊 Form AOC-4 (Annual Financial Statements Filing)
+              </Link>
+              <Link
+                href="/compliance"
+                onClick={() => setIsSearchOpen(false)}
+                className="p-2 hover:bg-[#F8FAFC] rounded-lg block text-[#0F172A]"
+              >
+                📅 Statutory Compliance Deadlines & Penalty Matrix
               </Link>
             </div>
           </div>

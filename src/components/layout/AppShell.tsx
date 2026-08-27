@@ -1,11 +1,23 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { AiContextDrawer } from '@/components/ai/AiContextDrawer';
+import { useWorkspace } from '@/context/WorkspaceContext';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { user, isLoading } = useWorkspace();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push(`/auth/login?next=${encodeURIComponent(pathname || '/overview')}`);
+    }
+  }, [user, isLoading, pathname, router]);
+
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans">
       <Navbar />
