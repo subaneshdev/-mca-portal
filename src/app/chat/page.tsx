@@ -95,12 +95,12 @@ function ChatContent() {
   // In-Chat Wizard State: Incorporation
   const [incorpStep, setIncorpStep] = useState<number>(1);
   const [incorpType, setIncorpType] = useState<'pvt_ltd' | 'llp' | 'opc'>('pvt_ltd');
-  const [incorpName, setIncorpName] = useState<string>('NeoCraft Technologies');
-  const [incorpDesc, setIncorpDesc] = useState<string>('Autonomous AI software development');
+  const [incorpName, setIncorpName] = useState<string>('');
+  const [incorpDesc, setIncorpDesc] = useState<string>('');
   const [incorpFounders, setIncorpFounders] = useState<string>('2');
 
-  const displayName = profile?.full_name || 'Subanesh M.';
-  const companyName = selectedCompany?.name || 'Ziggers Technologies Pvt Ltd';
+  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
+  const companyName = selectedCompany?.name || (allCompanies.length > 0 ? allCompanies[0].name : 'No Active Company');
 
   // Protect route if unauthenticated
   useEffect(() => {
@@ -487,16 +487,28 @@ function ChatContent() {
                               <label className="text-[11px] font-semibold text-neutral-300 block mb-1">
                                 1. Select the resigning director:
                               </label>
-                              <select
-                                value={resigningDirector}
-                                onChange={(e) => setResigningDirector(e.target.value)}
-                                className="w-full p-2.5 bg-[#0D0D11] border border-white/15 rounded-lg text-xs font-medium text-white outline-none focus:border-blue-500"
-                              >
-                                <option value="">-- Choose Director --</option>
-                                <option value="Subanesh M.">Subanesh M. (DIN: 08945120)</option>
-                                <option value="Ananya Sharma">Ananya Sharma (DIN: 09124589)</option>
-                                <option value="Rohan Patel">Rohan Patel (DIN: 07823419)</option>
-                              </select>
+                              {selectedCompany?.directors && selectedCompany.directors.length > 0 ? (
+                                <select
+                                  value={resigningDirector}
+                                  onChange={(e) => setResigningDirector(e.target.value)}
+                                  className="w-full p-2.5 bg-[#0D0D11] border border-white/15 rounded-lg text-xs font-medium text-white outline-none focus:border-blue-500"
+                                >
+                                  <option value="">-- Choose Registered Director --</option>
+                                  {selectedCompany.directors.map(d => (
+                                    <option key={d.din} value={d.full_name}>
+                                      {d.full_name} (DIN: {d.din}) - {d.designation}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={resigningDirector}
+                                  onChange={(e) => setResigningDirector(e.target.value)}
+                                  placeholder="Enter Director Name (DIN: 8 digits)"
+                                  className="w-full p-2.5 bg-[#0D0D11] border border-white/15 rounded-lg text-xs font-medium text-white outline-none focus:border-blue-500"
+                                />
+                              )}
                             </div>
 
                             <div>

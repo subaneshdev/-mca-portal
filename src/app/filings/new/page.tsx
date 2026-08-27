@@ -36,7 +36,7 @@ function NewFilingWizardContent() {
   const directors = selectedCompany?.directors || [];
   const defaultDirector = directors.length > 0 
     ? `${directors[0].din} - ${directors[0].full_name} (${directors[0].designation})`
-    : '08945120 - Subanesh M. (Managing Director)';
+    : '';
 
   // Form State
   const [selectedDirector, setSelectedDirector] = useState(defaultDirector);
@@ -206,15 +206,14 @@ function NewFilingWizardContent() {
                 onChange={(e) => setSelectedDirector(e.target.value)}
                 className="w-full px-3 py-2 text-xs border border-[#E5E5E5] rounded-lg outline-none focus:border-[#2563EB] bg-white text-[#0A0A0A]"
               >
-                {directors.map(d => (
-                  <option key={d.id || d.din} value={`${d.din} - ${d.full_name} (${d.designation})`}>
-                    {d.din} - {d.full_name} ({d.designation})
-                  </option>
-                ))}
-                {directors.length === 0 && (
-                  <option value="08945120 - Subanesh M. (Managing Director)">
-                    08945120 - Subanesh M. (Managing Director)
-                  </option>
+                {directors.length > 0 ? (
+                  directors.map(d => (
+                    <option key={d.id || d.din} value={`${d.din} - ${d.full_name} (${d.designation})`}>
+                      {d.din} - {d.full_name} ({d.designation})
+                    </option>
+                  ))
+                ) : (
+                  <option value="">-- No Registered Directors in Company --</option>
                 )}
               </select>
             </div>

@@ -14,9 +14,9 @@ function SignUpForm() {
   const nextDestination = searchParams.get('next') || searchParams.get('redirect') || '';
 
   const { setRole, refreshCompanies, setUserSession } = useWorkspace();
-  const [fullName, setFullName] = useState('Subanesh M.');
-  const [email, setEmail] = useState('c.subanesh@gmail.com');
-  const [password, setPassword] = useState('Password123!');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [persona, setPersonaChoice] = useState<WorkspaceRole>('founder');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -173,7 +173,7 @@ function SignUpForm() {
                   required
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Subanesh M."
+                  placeholder="e.g. John Doe"
                   className="w-full pl-9 pr-3 py-2 text-xs border border-[#E5E5E5] rounded-lg outline-none focus:border-[#2563EB] text-[#0A0A0A] bg-white font-medium"
                 />
               </div>
@@ -190,7 +190,7 @@ function SignUpForm() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="c.subanesh@gmail.com"
+                  placeholder="name@company.com"
                   className="w-full pl-9 pr-3 py-2 text-xs border border-[#E5E5E5] rounded-lg outline-none focus:border-[#2563EB] text-[#0A0A0A] bg-white font-medium"
                 />
               </div>

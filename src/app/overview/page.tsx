@@ -86,45 +86,43 @@ export default function OverviewDashboard() {
   const upcomingItems = deadlines.filter(d => d.urgency === 'upcoming');
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'Professional';
 
-  // Multi-Company High-Priority Operations Sample
-  const multiCompanyAlerts = [
-    {
-      company: 'Ziggers Technologies Pvt Ltd',
-      cin: 'U72900KA2021PTC145892',
-      form: 'AOC-4',
-      title: 'Annual Financial Statements',
-      due: 'Due in 3 days',
-      urgency: 'critical',
-      actionUrl: '/filings/new?form=AOC-4&company=Ziggers'
-    },
-    {
-      company: 'Future Foods Private Limited',
-      cin: 'U15122DL2020PTC368912',
-      form: 'DIR-3 KYC',
-      title: 'Director Annual KYC Verification',
-      due: 'Action Required',
-      urgency: 'action_required',
-      actionUrl: '/filings/new?form=DIR-3&company=FutureFoods'
-    },
-    {
-      company: 'Unfounded Labs Private Limited',
-      cin: 'U74999MH2022PTC389012',
-      form: 'INC-22',
-      title: 'Change of Registered Office Notice',
-      due: 'Draft Required',
-      urgency: 'action_required',
-      actionUrl: '/filings/new?form=INC-22&company=Unfounded'
-    },
-    {
-      company: 'Acme Solutions LLP',
-      cin: 'AAZ-8912',
-      form: 'Form 11',
-      title: 'Annual Return of LLP',
-      due: 'Due in 18 days',
-      urgency: 'upcoming',
-      actionUrl: '/filings/new?form=Form11&company=Acme'
+  // Dynamically compute alerts from registered workspace companies
+  interface CompanyAlertItem {
+    company: string;
+    cin: string;
+    form: string;
+    title: string;
+    due: string;
+    urgency: 'critical' | 'action_required' | 'upcoming';
+    actionUrl: string;
+  }
+
+  const multiCompanyAlerts: CompanyAlertItem[] = allCompanies.flatMap((c): CompanyAlertItem[] => {
+    const list: CompanyAlertItem[] = [];
+    if (c.compliance_count?.critical) {
+      list.push({
+        company: c.name,
+        cin: c.cin,
+        form: 'AOC-4 / DIR-3 KYC',
+        title: 'Statutory Annual Filings Pending',
+        due: 'Urgent Action Required',
+        urgency: 'critical',
+        actionUrl: `/filings/new?company=${encodeURIComponent(c.cin)}`
+      });
     }
-  ];
+    if (c.compliance_count?.action_required) {
+      list.push({
+        company: c.name,
+        cin: c.cin,
+        form: 'Compliance Schedule',
+        title: 'Upcoming Statutory Obligations',
+        due: 'Action Required',
+        urgency: 'action_required',
+        actionUrl: `/compliance?company=${encodeURIComponent(c.cin)}`
+      });
+    }
+    return list;
+  });
 
   const standardFormsCatalogue = [
     { code: 'DIR-12', name: 'Director Appointment / Cessation', cat: 'Management', section: 'Sec 168/170' },

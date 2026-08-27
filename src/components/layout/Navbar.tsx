@@ -219,7 +219,7 @@ export function Navbar() {
               <div className="absolute right-0 mt-1.5 w-56 bg-white border border-[#CBD5E1] rounded-xl shadow-xl py-1.5 z-50">
                 <div className="px-3 py-2 border-b border-[#E2E8F0]">
                   <div className="font-bold text-xs text-[#0B2545]">{displayName}</div>
-                  <div className="text-[11px] text-[#64748B] truncate">{user?.email || 'c.subanesh@gmail.com'}</div>
+                  <div className="text-[11px] text-[#64748B] truncate">{user?.email || 'user@futuremca.in'}</div>
                 </div>
 
                 <Link

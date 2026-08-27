@@ -131,8 +131,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       const localRole = (typeof window !== 'undefined' ? localStorage.getItem('future_mca_role') : null) as WorkspaceRole || 'founder';
       const userProfile: UserProfile = {
         id: activeUser.id || 'usr-default',
-        email: activeUser.email || 'c.subanesh@gmail.com',
-        full_name: activeUser.user_metadata?.full_name || activeUser.email?.split('@')[0] || 'Subanesh M.',
+        email: activeUser.email || 'user@futuremca.in',
+        full_name: activeUser.user_metadata?.full_name || activeUser.email?.split('@')[0] || 'User',
         persona: activeUser.user_metadata?.persona || localRole
       };
       setProfile(userProfile);

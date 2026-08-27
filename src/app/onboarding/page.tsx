@@ -48,7 +48,9 @@ export default function OnboardingPage() {
   const handlePersonaNext = async () => {
     await setRole(selectedPersona);
     setWorkspaceName(
-      selectedPersona === 'founder' ? 'Ziggers Technologies Workspace' : 'Subanesh & Associates'
+      selectedPersona === 'founder'
+        ? `${profile?.full_name || 'My'} Business Workspace`
+        : `${profile?.full_name || 'Professional'} & Associates Practice`
     );
     setStep(2);
   };
@@ -242,7 +244,7 @@ export default function OnboardingPage() {
                     required
                     value={workspaceName}
                     onChange={(e) => setWorkspaceName(e.target.value)}
-                    placeholder="e.g. Ziggers Technologies or Subanesh & Associates"
+                    placeholder="e.g. Acme Innovations or Frontier Advisory"
                     className="w-full px-3.5 py-2.5 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl outline-none focus:border-[#0B2545] text-[#0F172A]"
                   />
                 </div>

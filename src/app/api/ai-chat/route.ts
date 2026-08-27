@@ -10,8 +10,8 @@ export async function POST(request: NextRequest) {
   try {
     const { message, context = {} } = await request.json();
     const query = (message || '').trim().toLowerCase();
-    const activeCompany = context.companyName || 'Ziggers Technologies Pvt Ltd';
-    const activeCin = context.cin || 'U72900KA2021PTC145892';
+    const activeCompany = context.companyName || 'Your Active Company';
+    const activeCin = context.cin || '';
 
     // 1. Check if it's an error diagnosis question
     if (query.includes('error') || query.includes('fail') || query.includes('reject') || query.includes('dsc') || query.includes('reconcil')) {

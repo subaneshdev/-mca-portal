@@ -365,7 +365,7 @@ export default function SingleViewportLandingPage() {
               <div className="flex items-center space-x-2">
                 <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-[#F1F5F9] border border-[#CBD5E1] text-xs text-[#0B2545] font-medium">
                   <span className="w-2 h-2 rounded-full bg-[#16A34A]"></span>
-                  <span className="max-w-[130px] truncate">{profile?.full_name || user?.email || 'c.subanesh@gmail.com'}</span>
+                  <span className="max-w-[130px] truncate">{profile?.full_name || user?.email || 'User Account'}</span>
                 </div>
 
                 <button
@@ -693,7 +693,7 @@ export default function SingleViewportLandingPage() {
                     <div className="space-y-1">
                       <div className="font-bold text-white text-xs">Execute Live Inquiries in Plain English</div>
                       <p className="text-[11px] text-neutral-400 leading-relaxed">
-                        Ask Claude or Cursor: <em>"What filings are due for Ziggers Pvt Ltd?"</em> or <em>"Draft Form DIR-12 for resigning director John Doe"</em>.
+                        Ask Claude or Cursor: <em>"What filings are due for my company this quarter?"</em> or <em>"Draft Form DIR-12 for resigning director"</em>.
                       </p>
                     </div>
                   </div>

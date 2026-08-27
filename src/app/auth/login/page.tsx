@@ -14,8 +14,8 @@ function LoginForm() {
   const nextDestination = searchParams.get('next') || searchParams.get('redirect') || '';
 
   const { setRole, refreshCompanies, setUserSession } = useWorkspace();
-  const [email, setEmail] = useState('c.subanesh@gmail.com');
-  const [password, setPassword] = useState('Password123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
@@ -49,12 +49,13 @@ function LoginForm() {
       if (error) {
         // If user does not exist in Supabase auth yet, auto-register
         if (error.message.toLowerCase().includes('invalid login credentials') || error.message.toLowerCase().includes('user not found')) {
+          const defaultName = cleanEmail.split('@')[0];
           const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email: cleanEmail,
             password,
             options: {
               data: {
-                full_name: cleanEmail.split('@')[0] === 'c.subanesh' ? 'Subanesh M.' : cleanEmail.split('@')[0],
+                full_name: defaultName,
                 persona: 'founder'
               }
             }
@@ -70,7 +71,7 @@ function LoginForm() {
             const userProfile: UserProfile = {
               id: signUpData.user.id,
               email: cleanEmail,
-              full_name: 'Subanesh M.',
+              full_name: defaultName,
               persona: 'founder'
             };
             setUserSession(signUpData.user, userProfile);
@@ -90,7 +91,7 @@ function LoginForm() {
         const userProfile: UserProfile = {
           id: data.user.id,
           email: cleanEmail,
-          full_name: data.user.user_metadata?.full_name || 'Subanesh M.',
+          full_name: data.user.user_metadata?.full_name || cleanEmail.split('@')[0],
           persona: userPersona
         };
         setUserSession(data.user, userProfile);
@@ -104,7 +105,7 @@ function LoginForm() {
       const fallbackProfile: UserProfile = {
         id: 'usr-local-session',
         email: cleanEmail,
-        full_name: 'Subanesh M.',
+        full_name: cleanEmail.split('@')[0],
         persona: fallbackPersona
       };
       setUserSession(fallbackUser, fallbackProfile);
@@ -119,9 +120,9 @@ function LoginForm() {
     setErrorMsg('');
     setSuccessMsg('');
 
-    const demoEmail = persona === 'founder' ? 'c.subanesh@gmail.com' : 'c.subanesh+ca@gmail.com';
+    const demoEmail = persona === 'founder' ? 'founder@demo.futuremca.in' : 'ca@demo.futuremca.in';
     const demoPassword = 'Password123!';
-    const demoName = persona === 'founder' ? 'Subanesh M. (Founder)' : 'Subanesh M. (CA / CS Practice)';
+    const demoName = persona === 'founder' ? 'Demo Founder' : 'Demo CA/CS Practice';
 
     const localUser = { id: `usr-${persona}-demo`, email: demoEmail };
     const localProfile: UserProfile = {
@@ -135,7 +136,6 @@ function LoginForm() {
     setUserSession(localUser, localProfile);
 
     try {
-      // 1. Try Supabase sign in in background
       let { data, error } = await supabase.auth.signInWithPassword({
         email: demoEmail,
         password: demoPassword
@@ -223,7 +223,7 @@ function LoginForm() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="c.subanesh@gmail.com"
+                  placeholder="name@company.com"
                   className="w-full pl-9 pr-3 py-2 text-xs border border-[#E5E5E5] rounded-lg outline-none focus:border-[#2563EB] text-[#0A0A0A] bg-white font-medium"
                 />
               </div>
@@ -272,7 +272,7 @@ function LoginForm() {
                   <Building2 className="w-3.5 h-3.5 text-[#0066CC]" />
                   <span>Founder Mode</span>
                 </div>
-                <div className="text-[10px] text-[#737373] mt-0.5 truncate">c.subanesh@gmail.com</div>
+                <div className="text-[10px] text-[#737373] mt-0.5 truncate">founder@demo.futuremca.in</div>
               </button>
 
               <button
@@ -284,7 +284,7 @@ function LoginForm() {
                   <ShieldCheck className="w-3.5 h-3.5 text-[#0B2545]" />
                   <span>CA / CS Mode</span>
                 </div>
-                <div className="text-[10px] text-[#737373] mt-0.5 truncate">c.subanesh+ca@gmail.com</div>
+                <div className="text-[10px] text-[#737373] mt-0.5 truncate">ca@demo.futuremca.in</div>
               </button>
             </div>
           </div>
