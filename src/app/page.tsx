@@ -5,13 +5,34 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AshokaEmblem, McaLogoBadge } from '@/components/brand/McaEmblem';
 import { useWorkspace } from '@/context/WorkspaceContext';
-import { Search, User, ArrowRight, Sparkles, LogOut, CheckCircle2, Bot } from 'lucide-react';
+import { 
+  Search, 
+  User, 
+  ArrowRight, 
+  Sparkles, 
+  LogOut, 
+  CheckCircle2, 
+  Bot, 
+  Code2, 
+  Copy, 
+  Check, 
+  ShieldCheck, 
+  Cpu, 
+  Layers, 
+  Zap, 
+  Terminal,
+  ExternalLink,
+  ChevronRight
+} from 'lucide-react';
 
 export default function SingleViewportLandingPage() {
   const router = useRouter();
   const { user, profile, signOut } = useWorkspace();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeModal, setActiveModal] = useState<'product' | 'mcp' | 'professionals' | null>(null);
+  const [mcpModalTab, setMcpModalTab] = useState<'tools' | 'steps' | 'config'>('tools');
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [pingStatus, setPingStatus] = useState<'idle' | 'testing' | 'success'>('idle');
 
   const isAuthenticated = !!user;
 
@@ -25,6 +46,35 @@ export default function SingleViewportLandingPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  const handleCopy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const handleTestPing = async () => {
+    setPingStatus('testing');
+    try {
+      const res = await fetch('/api/mcp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'ping-test',
+          method: 'tools/list',
+          params: {}
+        })
+      });
+      if (res.ok) {
+        setPingStatus('success');
+      } else {
+        setPingStatus('idle');
+      }
+    } catch {
+      setPingStatus('idle');
+    }
+  };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +90,54 @@ export default function SingleViewportLandingPage() {
     if (isAuthenticated) return targetUrl;
     return `/auth/login?next=${encodeURIComponent(targetUrl)}`;
   };
+
+  const mcpToolsList = [
+    {
+      name: 'get_company_master_data',
+      desc: 'Retrieves verified master records, CIN, capital structure, RoC jurisdiction, and active status.',
+      category: 'Master Data'
+    },
+    {
+      name: 'list_directors',
+      desc: 'Lists Board of Directors with DIN validation, DSC expiry dates, and annual KYC compliance.',
+      category: 'Governance'
+    },
+    {
+      name: 'get_compliance_deadlines',
+      desc: 'Calculates upcoming statutory deadlines (AOC-4, MGT-7, DIR-3 KYC) and daily penalty exposure.',
+      category: 'Compliance'
+    },
+    {
+      name: 'prepare_filing_draft',
+      desc: 'Prepares validated draft e-Forms (DIR-12, INC-22, MGT-14) with real-time pre-scrutiny checks.',
+      category: 'Filings'
+    },
+    {
+      name: 'diagnose_mca_error',
+      desc: 'Analyzes MCA V3 portal error codes and backend rejection notices with prescribed fix steps.',
+      category: 'Diagnostics'
+    },
+    {
+      name: 'track_application_status',
+      desc: 'Tracks real-time SRN processing across Central Registration Centre (CRC) and RoC offices.',
+      category: 'Tracking'
+    }
+  ];
+
+  const claudeConfigJson = `{
+  "mcpServers": {
+    "future-mca": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-everything"
+      ],
+      "env": {
+        "MCA_API_ENDPOINT": "https://mca-portal-ten.vercel.app/api/mcp"
+      }
+    }
+  }
+}`;
 
   return (
     <div className="relative w-full h-screen min-h-screen overflow-hidden bg-black text-white font-sans selection:bg-white selection:text-black flex flex-col justify-between">
@@ -157,7 +255,7 @@ export default function SingleViewportLandingPage() {
         }
       `}</style>
 
-      {/* Exact Background Video */}
+      {/* Background Video */}
       <div className="absolute inset-0 bg-black overflow-hidden z-0 pointer-events-none">
         <video
           className="absolute inset-0 w-full h-full object-cover z-0 opacity-80"
@@ -171,13 +269,11 @@ export default function SingleViewportLandingPage() {
             type="video/mp4"
           />
         </video>
-        {/* Subtle dark radial overlay for readability */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.25)_0%,rgba(0,0,0,0.65)_100%)] bg-black/40 z-1" />
       </div>
 
       {/* ==================================================
          1. AUTHENTIC GOVERNMENT OF INDIA MCA HEADER BAR
-         (Matching exact visual specifications in screenshot)
       ================================================== */}
       <header className="relative z-30 w-full bg-white text-[#0B2545] shadow-md anim-slide-down">
         
@@ -274,7 +370,7 @@ export default function SingleViewportLandingPage() {
 
                 <button
                   onClick={() => signOut()}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full border border-[#CBD5E1] hover:bg-[#FEF2F2] hover:border-[#DC2626]/30 text-[#DC2626] text-xs font-semibold transition-all"
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full border border-[#CBD5E1] hover:bg-[#FEF2F2] hover:border-[#DC2626]/30 text-[#DC2626] text-xs font-semibold transition-all cursor-pointer"
                   title="Sign Out"
                 >
                   <LogOut className="w-3.5 h-3.5" />
@@ -375,9 +471,10 @@ export default function SingleViewportLandingPage() {
             <button
               type="button"
               onClick={() => setActiveModal('mcp')}
-              className="w-full sm:w-auto text-[#d0d0d0] hover:text-white border border-white/20 hover:border-white/50 hover:bg-white/5 text-[clamp(13px,1.3vw,14px)] font-medium px-5 py-2.5 rounded-full transition-all"
+              className="w-full sm:w-auto text-[#d0d0d0] hover:text-white border border-white/20 hover:border-white/50 hover:bg-white/5 text-[clamp(13px,1.3vw,14px)] font-medium px-5 py-2.5 rounded-full transition-all cursor-pointer flex items-center justify-center space-x-1.5"
             >
-              Explore MCP
+              <Sparkles className="w-3.5 h-3.5 text-[#60A5FA]" />
+              <span>Explore MCP</span>
             </button>
           </div>
 
@@ -449,62 +546,230 @@ export default function SingleViewportLandingPage() {
 
       </div>
 
-      {/* MCP Explainer Modal */}
+      {/* ==================================================
+         EXPLORE MCP MODAL (Interactive Tools, Steps & Config)
+      ================================================== */}
       {activeModal === 'mcp' && (
         <div
           onClick={() => setActiveModal(null)}
-          className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#111113] border border-white/15 rounded-3xl w-full max-w-[600px] p-7 sm:p-9 shadow-2xl relative text-left"
+            className="bg-[#111115] border border-white/20 rounded-3xl w-full max-w-[720px] max-h-[90vh] flex flex-col shadow-2xl relative text-left overflow-hidden"
           >
-            <button
-              onClick={() => setActiveModal(null)}
-              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs transition-colors"
-            >
-              <i className="fa-solid fa-xmark"></i>
-            </button>
+            
+            {/* Modal Header */}
+            <div className="p-6 sm:p-7 border-b border-white/10 relative">
+              <button
+                onClick={() => setActiveModal(null)}
+                className="absolute top-6 right-6 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs transition-colors cursor-pointer"
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
 
-            <div className="text-[11px] font-bold uppercase tracking-wider text-[#8e8e8e] mb-2">
-              Model Context Protocol (MCP)
-            </div>
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white mb-2">
-              Your company, available when you need it.
-            </h2>
-            <p className="text-xs sm:text-sm text-[#a8a8a8] leading-relaxed mb-6">
-              Future MCA gives your authorised AI assistant structured access to the company context you choose to share.
-            </p>
-
-            {/* Architecture Visual Flow */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-2.5 mb-5 text-xs">
-              <div className="flex items-center justify-between bg-[#18181b] border border-white/10 p-3 rounded-xl">
-                <span className="text-[#94a3b8]">Future MCA Workspace</span>
-                <strong className="text-white font-mono">Single Source of Truth</strong>
+              <div className="inline-flex items-center space-x-2 px-2.5 py-1 rounded-full bg-white/10 border border-white/20 text-[10px] font-mono uppercase tracking-wider text-blue-400 mb-2">
+                <Sparkles className="w-3 h-3" />
+                <span>Model Context Protocol &bull; Remote JSON-RPC 2.0</span>
               </div>
-              <div className="text-center text-[#666666] text-[11px] font-mono">&darr; Secure Authentication & Scopes</div>
-              <div className="flex items-center justify-between bg-[#18181b] border border-white/10 p-3 rounded-xl">
-                <span className="text-[#94a3b8]">Model Context Protocol (MCP)</span>
-                <strong className="text-white font-mono">Remote JSON-RPC 2.0 Server</strong>
-              </div>
-              <div className="text-center text-[#666666] text-[11px] font-mono">&darr; Compatible AI Assistants</div>
-              <div className="flex items-center justify-between bg-[#18181b] border border-white/10 p-3 rounded-xl">
-                <span className="text-[#94a3b8]">Claude &bull; ChatGPT &bull; Cursor</span>
-                <strong className="text-[#4ade80] font-mono">Authorised Context & Actions</strong>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+                Connect AI Agents to Verified MCA Context
+              </h2>
+              <p className="text-xs sm:text-sm text-neutral-400 mt-1 leading-relaxed max-w-xl">
+                Allow Claude, Cursor, and custom AI assistants to safely query real-time statutory master data, calculate penalty deadlines, and prepare e-Forms.
+              </p>
+
+              {/* Navigation Tabs */}
+              <div className="flex items-center space-x-2 mt-5 border-b border-white/10 pb-1">
+                {[
+                  { id: 'tools', label: '1. Available MCP Tools (6)', icon: <Cpu className="w-3.5 h-3.5" /> },
+                  { id: 'steps', label: '2. Steps to Connect', icon: <Layers className="w-3.5 h-3.5" /> },
+                  { id: 'config', label: '3. Copy Config & Ping', icon: <Terminal className="w-3.5 h-3.5" /> },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setMcpModalTab(tab.id as any)}
+                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      mcpModalTab === tab.id
+                        ? 'bg-white text-black shadow-sm'
+                        : 'text-neutral-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="bg-[#08080a] border border-white/10 rounded-xl p-3 font-mono text-xs text-[#e2e8f0] flex items-center justify-between mb-5">
-              <span>Endpoint: https://mca-portal-ten.vercel.app/api/mcp</span>
-              <span className="text-[10px] text-[#4ade80] bg-[#4ade80]/10 px-2 py-0.5 rounded">SSE / HTTP</span>
+            {/* Modal Body (Scrollable) */}
+            <div className="p-6 sm:p-7 overflow-y-auto flex-1 space-y-5 text-xs text-neutral-300 scrollbar-thin scrollbar-thumb-white/10">
+              
+              {/* TAB 1: AVAILABLE TOOLS */}
+              {mcpModalTab === 'tools' && (
+                <div className="space-y-3 animate-in fade-in duration-150">
+                  <div className="text-[11px] text-neutral-400 font-mono">
+                    All tools use JSON Schema parameter validation and enforce read/write workspace scoping:
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {mcpToolsList.map((tool, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all flex flex-col justify-between space-y-1.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <code className="text-xs font-bold text-blue-400 font-mono">
+                            {tool.name}
+                          </code>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-neutral-400 font-mono uppercase">
+                            {tool.category}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-neutral-400 leading-relaxed">
+                          {tool.desc}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: STEPS TO CONNECT */}
+              {mcpModalTab === 'steps' && (
+                <div className="space-y-3.5 animate-in fade-in duration-150">
+                  
+                  {/* Step 1 */}
+                  <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 flex items-start space-x-3">
+                    <div className="w-6 h-6 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                      1
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-bold text-white text-xs">Choose your AI Assistant Client</div>
+                      <p className="text-[11px] text-neutral-400 leading-relaxed">
+                        Supports <strong>Claude Web (Custom MCP OAuth 2.1)</strong>, <strong>Claude Desktop</strong>, <strong>Cursor IDE</strong>, <strong>Windsurf</strong>, or any Python/TypeScript MCP Agent.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Step 2 */}
+                  <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 flex items-start space-x-3">
+                    <div className="w-6 h-6 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                      2
+                    </div>
+                    <div className="space-y-1 w-full">
+                      <div className="font-bold text-white text-xs">Copy the Remote MCP Server URL</div>
+                      <div className="flex items-center justify-between bg-black/60 border border-white/15 px-3 py-2 rounded-lg font-mono text-[11px] text-neutral-200 mt-1">
+                        <span className="truncate">https://mca-portal-ten.vercel.app/api/mcp</span>
+                        <button
+                          onClick={() => handleCopy('https://mca-portal-ten.vercel.app/api/mcp', 'url')}
+                          className="text-neutral-400 hover:text-white ml-2 shrink-0 p-1 flex items-center space-x-1 cursor-pointer"
+                        >
+                          {copiedKey === 'url' ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          <span className="text-[10px]">{copiedKey === 'url' ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 3 */}
+                  <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 flex items-start space-x-3">
+                    <div className="w-6 h-6 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                      3
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-bold text-white text-xs">Authorize Workspace Scope</div>
+                      <p className="text-[11px] text-neutral-400 leading-relaxed">
+                        Authorize standard scopes (<code className="text-blue-300">companies:read</code>, <code className="text-blue-300">compliance:read</code>, <code className="text-blue-300">filings:draft</code>). External agents only see data explicitly permitted by your account.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Step 4 */}
+                  <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 flex items-start space-x-3">
+                    <div className="w-6 h-6 rounded-full bg-green-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                      4
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-bold text-white text-xs">Execute Live Inquiries in Plain English</div>
+                      <p className="text-[11px] text-neutral-400 leading-relaxed">
+                        Ask Claude or Cursor: <em>"What filings are due for Ziggers Pvt Ltd?"</em> or <em>"Draft Form DIR-12 for resigning director John Doe"</em>.
+                      </p>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+
+              {/* TAB 3: CONFIG & PING */}
+              {mcpModalTab === 'config' && (
+                <div className="space-y-4 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-white">Claude Desktop Configuration (<code className="text-neutral-400">claude_desktop_config.json</code>)</span>
+                    <button
+                      onClick={() => handleCopy(claudeConfigJson, 'json')}
+                      className="px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-white flex items-center space-x-1.5 text-[11px] cursor-pointer"
+                    >
+                      {copiedKey === 'json' ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedKey === 'json' ? 'Copied Config' : 'Copy JSON'}</span>
+                    </button>
+                  </div>
+
+                  <pre className="p-3.5 bg-black/70 border border-white/15 rounded-xl font-mono text-[11px] text-blue-300 overflow-x-auto">
+                    {claudeConfigJson}
+                  </pre>
+
+                  {/* Endpoint Live Ping Tool */}
+                  <div className="p-3.5 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <div className="font-bold text-white text-xs">Test Live Endpoint Response</div>
+                      <div className="text-[11px] text-neutral-400">Sends JSON-RPC 2.0 <code className="text-neutral-300">tools/list</code> request to server</div>
+                    </div>
+                    
+                    <button
+                      onClick={handleTestPing}
+                      disabled={pingStatus === 'testing'}
+                      className="px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold text-xs flex items-center space-x-1.5 cursor-pointer shadow-sm"
+                    >
+                      {pingStatus === 'testing' ? (
+                        <>
+                          <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                          <span>Pinging...</span>
+                        </>
+                      ) : pingStatus === 'success' ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5 text-green-300" />
+                          <span>Active (200 OK)</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-3.5 h-3.5" />
+                          <span>Ping Server</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
             </div>
 
-            <Link
-              href={getProtectedUrl('/connect-ai')}
-              className="w-full block py-3 bg-white hover:bg-[#e6e6e6] text-black font-semibold text-center text-xs sm:text-sm rounded-xl transition-colors"
-            >
-              Open AI Connection Centre &rarr;
-            </Link>
+            {/* Modal Footer */}
+            <div className="p-5 sm:p-6 bg-black/40 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-[11px] text-neutral-400 font-mono">
+                Endpoint: <strong className="text-white">/api/mcp</strong> &bull; Protocol: <strong>Model Context Protocol (v1.3)</strong>
+              </div>
+
+              <Link
+                href={getProtectedUrl('/connect-ai')}
+                onClick={() => setActiveModal(null)}
+                className="w-full sm:w-auto px-5 py-2.5 bg-white hover:bg-neutral-200 text-black font-semibold text-xs rounded-xl transition-colors flex items-center justify-center space-x-1.5 shadow-sm"
+              >
+                <span>Open Full AI Connection Hub</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
           </div>
         </div>
       )}
