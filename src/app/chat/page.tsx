@@ -251,14 +251,11 @@ export function ChatContent() {
   };
 
   const quickActions: QuickActionItem[] = [
-    { icon: <CircleUserRound className="w-4 h-4 text-emerald-400" />, label: "Add X person as Director", query: "Add X person as an director create din number ask confirmation and directly add" },
-    { icon: <FileUp className="w-4 h-4 text-amber-400" />, label: "My director resigned", query: "My director resigned." },
-    { icon: <Building2 className="w-4 h-4 text-blue-400" />, label: "I want to start a company", query: "I want to start a company." },
-    { icon: <MonitorIcon className="w-4 h-4 text-purple-400" />, label: "What deadlines are coming up?", query: "What are my upcoming statutory deadlines?" },
-    { icon: <Code2 className="w-4 h-4 text-cyan-400" />, label: "Generate Code", query: "How do I integrate the MCA MCP server with Claude or Cursor?" },
-    { icon: <Rocket className="w-4 h-4 text-pink-400" />, label: "Launch App", query: "Check company incorporation status and active filings" },
-    { icon: <Layers className="w-4 h-4 text-indigo-400" />, label: "UI Components", query: "List verified master data for Aeos Labs Private Limited" },
-    { icon: <Palette className="w-4 h-4 text-orange-400" />, label: "Theme Ideas", query: "Diagnose MCA rejection error codes" },
+    { icon: <Building2 className="w-4 h-4 text-cyan-400" />, label: "Start a Company", query: "I want to start a company." },
+    { icon: <FileUp className="w-4 h-4 text-amber-400" />, label: "Director Resigned", query: "My director resigned." },
+    { icon: <CircleUserRound className="w-4 h-4 text-emerald-400" />, label: "Who are my directors?", query: "Who are my directors?" },
+    { icon: <MonitorIcon className="w-4 h-4 text-blue-400" />, label: "Tell me about my company", query: "Tell me about my company." },
+    { icon: <Rocket className="w-4 h-4 text-purple-400" />, label: "Pending Filings", query: "What filings are pending?" },
   ];
 
   return (

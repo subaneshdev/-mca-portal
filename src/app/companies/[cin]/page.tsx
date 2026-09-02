@@ -307,16 +307,31 @@ export default function CompanyDetailPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E5E5E5]">
-                  {directors.map(dir => (
-                    <tr key={dir.id} className="hover:bg-[#F7F7F5]">
-                      <td className="py-3 font-semibold text-black">{dir.full_name}</td>
-                      <td className="py-3 font-mono text-[#525252]">{dir.din}</td>
-                      <td className="py-3 text-[#525252]">{dir.designation}</td>
-                      <td className="py-3">
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#F0FDF4] text-[#16A34A] font-bold">
-                          {dir.din_status}
-                        </span>
-                      </td>
+                  {directors.map(dir => {
+                    const isResigned = (dir as any).status === 'RESIGNED' || !!(dir as any).cessation_date;
+                    return (
+                      <tr key={dir.id} className="hover:bg-[#F7F7F5]">
+                        <td className="py-3 font-semibold text-black">
+                          <div className="flex items-center space-x-2">
+                            <span>{dir.full_name}</span>
+                            {isResigned && (
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#FEF2F2] text-[#DC2626] font-bold">
+                                RESIGNED ({dir.cessation_date || '15 Aug 2026'})
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 font-mono text-[#525252]">{dir.din}</td>
+                        <td className="py-3 text-[#525252]">
+                          {isResigned ? 'Former Director' : dir.designation}
+                        </td>
+                        <td className="py-3">
+                          <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                            isResigned ? 'bg-[#FEF2F2] text-[#DC2626]' : 'bg-[#F0FDF4] text-[#16A34A]'
+                          }`}>
+                            {isResigned ? 'RESIGNED' : dir.din_status}
+                          </span>
+                        </td>
                       <td className="py-3">
                         <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
                           dir.kyc_status === 'COMPLIANT' ? 'bg-[#F0FDF4] text-[#16A34A]' : 'bg-[#FFFBEB] text-[#D97706]'
@@ -333,7 +348,8 @@ export default function CompanyDetailPage() {
                       </td>
                       <td className="py-3 font-mono text-[#737373]">{dir.dsc_expiry || 'N/A'}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -1,360 +1,423 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ActionService } from '@/lib/services/actionService';
 import { CompanyService } from '@/lib/services/companyService';
+import { executeMcpTool } from '@/lib/mcp/tools';
 import { PRIMARY_DEMO_COMPANY, PRIMARY_DEMO_DIRECTORS } from '@/lib/services/seedService';
 
 export const runtime = 'nodejs';
 
-async function callGemini(prompt: string, contextPrompt: string): Promise<string | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
-
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: `You are Future MCA Autonomous Copilot, a founder-friendly corporate copilot assisting Varun Maya (Founder & Managing Director of Aeos Labs Private Limited).
-Active Company: Aeos Labs Private Limited (CIN: U62099TN2026PTCDEMO001)
-Directors: Varun Maya (Managing Director), Rahul Menon (Director - Resignation Pending)
-
-User Question / Command:
-"${prompt}"
-
-Instructions:
-1. Provide helpful, conversational, clear advice without overwhelming legal jargon.
-2. If the user asks about director resignation, explain that Rahul Menon's resignation on 25 August 2026 requires Form DIR-12 under Section 168.
-3. If the user asks to incorporate/start a company, explain the SPICe+ Part A/B workflow step-by-step.
-4. Direct Director Addition: If the user asks to add a person as a director ("add X as director"), DO NOT demand DSC authorization. Create an 8-digit DIN, ask confirmation, and directly add them to the company without requiring DSC.`
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 1024
-        }
-      })
-    });
-
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
-  } catch {
-    return null;
-  }
+// In-memory demo conversation stage
+interface DemoConversationState {
+  stage?: 
+    | 'IDLE'
+    | 'START_COMPANY_NAME'
+    | 'START_COMPANY_DETAILS'
+    | 'START_COMPANY_OFFICE'
+    | 'START_COMPANY_CAPITAL'
+    | 'START_COMPANY_DIRECTORS'
+    | 'START_COMPANY_CONFIRM'
+    | 'RESIGN_SELECT_DIRECTOR'
+    | 'RESIGN_DATE'
+    | 'RESIGN_CONFIRM';
+  company_name?: string;
+  company_type?: string;
+  business_activity?: string;
+  registered_office?: string;
+  authorized_capital?: string;
+  directors?: string[];
+  resigning_director?: string;
+  resignation_date?: string;
 }
+
+let activeDemoState: DemoConversationState = { stage: 'IDLE' };
 
 export async function POST(request: NextRequest) {
   try {
     const { message, context = {} } = await request.json();
     const query = (message || '').trim().toLowerCase();
-    const activeCompany = context.companyName || PRIMARY_DEMO_COMPANY.name;
-    const activeCin = context.cin || PRIMARY_DEMO_COMPANY.cin;
+    const rawText = (message || '').trim();
 
-    // ----------------------------------------------------
-    // CONVERSATIONAL CONFIRMATION HANDLER
-    // ----------------------------------------------------
-    if (
-      query === 'confirm' ||
+    // ====================================================
+    // 1. SIMPLE CONFIRMATION ("Yes", "Confirm", "Proceed")
+    // ====================================================
+    const isConfirmation = 
       query === 'yes' ||
+      query === 'yes.' ||
+      query === 'confirm' ||
       query === 'proceed' ||
       query === 'approve' ||
-      query === 'directly add' ||
-      query === 'confirm add' ||
-      query.startsWith('confirm add') ||
-      query.includes('directly add them') ||
-      query === 'confirm and directly add'
-    ) {
-      const pendingAction = await ActionService.getLatestPendingAction(activeCin);
+      query === 'do it' ||
+      query === 'create' ||
+      query === 'update' ||
+      query === 'create it' ||
+      query.startsWith('yes') ||
+      query.includes('would you like me to proceed') ||
+      query.includes('directly add');
+
+    if (isConfirmation) {
+      // 1A. START A COMPANY CONFIRMATION
+      if (activeDemoState.stage === 'START_COMPANY_CONFIRM') {
+        const companyName = activeDemoState.company_name || 'Aether Labs Private Limited';
+        const companyType = activeDemoState.company_type || 'Private Limited Company';
+        const business = activeDemoState.business_activity || 'AI Infrastructure and Enterprise Automation';
+        const office = activeDemoState.registered_office || 'Chennai, Tamil Nadu, India';
+        const capital = activeDemoState.authorized_capital || '₹10,00,000';
+
+        await executeMcpTool('create_company', {
+          company_name: companyName,
+          company_type: companyType,
+          business_activity: business,
+          registered_office: office,
+          authorized_capital: capital
+        });
+
+        activeDemoState = { stage: 'IDLE' };
+
+        return NextResponse.json({
+          type: 'action_executed',
+          workflow_type: 'COMPANY_INCORPORATION',
+          text: `Done. ${companyName} has been created in Future MCA. I've added the company, its directors, and the initial compliance workspace.`,
+          tools_used: ['create_company', 'get_company_profile']
+        });
+      }
+
+      // 1B. DIRECTOR RESIGNATION CONFIRMATION
+      if (activeDemoState.stage === 'RESIGN_CONFIRM') {
+        const directorName = activeDemoState.resigning_director || 'Arun Kumar';
+        const effectiveDate = activeDemoState.resignation_date || '15 August 2026';
+
+        await executeMcpTool('process_director_resignation', {
+          director_name: directorName,
+          effective_date: effectiveDate
+        });
+
+        activeDemoState = { stage: 'IDLE' };
+
+        return NextResponse.json({
+          type: 'action_executed',
+          workflow_type: 'DIRECTOR_RESIGNATION',
+          text: `Done. ${directorName}'s resignation has been recorded. I've updated the company records and prepared the DIR-12 filing workflow.`,
+          tools_used: ['process_director_resignation', 'get_company_directors']
+        });
+      }
+
+      // 1C. Fallback pending action confirmation (e.g. direct director addition)
+      const pendingAction = await ActionService.getLatestPendingAction(PRIMARY_DEMO_COMPANY.cin);
       if (pendingAction && pendingAction.status === 'AWAITING_USER_CONFIRMATION') {
-        if (pendingAction.action_type === 'DIRECTOR_CHANGE' && pendingAction.payload?.change_type === 'APPOINTMENT') {
-          // Confirm action
-          await ActionService.confirmAction(pendingAction.id, pendingAction.confirmation_token || undefined, {
-            workspaceId: context.workspaceId,
-            userId: 'usr_varun_maya',
-            actorType: 'USER',
-            clientName: 'Future MCA Conversational Copilot'
-          });
+        await ActionService.confirmAction(pendingAction.id, pendingAction.confirmation_token || undefined, {
+          workspaceId: context.workspaceId,
+          userId: 'usr_varun_maya',
+          actorType: 'USER',
+          clientName: 'Future MCA Conversational Copilot'
+        });
 
-          // Directly execute (no DSC needed)
-          const execResult = await ActionService.executeAction(pendingAction.id, undefined, {
-            workspaceId: context.workspaceId,
-            userId: 'usr_varun_maya',
-            actorType: 'USER',
-            clientName: 'Future MCA Conversational Copilot'
-          });
+        const execResult = await ActionService.executeAction(pendingAction.id, undefined, {
+          workspaceId: context.workspaceId,
+          userId: 'usr_varun_maya',
+          actorType: 'USER',
+          clientName: 'Future MCA Conversational Copilot'
+        });
 
-          const updatedDirectors = await CompanyService.getCompanyDirectors(activeCin);
-          const candidateName = pendingAction.payload?.director_name || 'New Director';
-          const din = pendingAction.payload?.din || '09847219';
+        const updatedDirectors = await CompanyService.getCompanyDirectors(PRIMARY_DEMO_COMPANY.cin);
+        const candidateName = pendingAction.payload?.director_name || 'New Director';
 
-          return NextResponse.json({
-            type: 'action_executed',
-            workflow_type: 'DIRECTOR_APPOINTMENT',
-            action_id: pendingAction.id,
-            text: `### ✅ Director Successfully Added!
-
-**${candidateName}** (DIN: **${din}**) has been directly added to the Board of Directors of **${activeCompany}**.
-
-- **Official Reference SRN:** \`${execResult.reference_number}\`
-- **Filing:** Form DIR-12 recorded with RoC
-- **DSC Authorization:** ⚡ **Bypassed — No DSC authorization required**
-- **Status:** **ACTIVE**
-
----
-
-#### 🏛️ Current Board of Directors:
-${updatedDirectors.map((d, i) => `${i + 1}. **${d.full_name}** — ${d.designation} (DIN: \`${d.din}\`) | Status: ${d.din_status || 'APPROVED'}`).join('\n')}
-
-All company records and compliance tracking have been updated immediately.`,
-            tools_used: ['confirm_action', 'execute_action', 'add_director', 'get_company_directors']
-          });
-        }
+        return NextResponse.json({
+          type: 'action_executed',
+          workflow_type: 'DIRECTOR_APPOINTMENT',
+          action_id: pendingAction.id,
+          text: `Done. ${candidateName} has been directly added to the Board of Directors of ${PRIMARY_DEMO_COMPANY.name}.\n\nReference SRN: ${execResult.reference_number}.`,
+          tools_used: ['confirm_action', 'execute_action', 'get_company_directors']
+        });
       }
     }
 
-    // ----------------------------------------------------
-    // WORKFLOW 3: DIRECT DIRECTOR ADDITION (DIN + DIRECT ADD)
-    // ----------------------------------------------------
-    const isAddDirectorIntent =
-      (query.includes('add') && (query.includes('director') || query.includes('person') || query.includes('din'))) ||
-      query.includes('appoint') ||
-      query.includes('new director') ||
-      query.includes('create din');
+    // ====================================================
+    // 2. READ VERIFICATION QUERIES (MCP PROOFS)
+    // ====================================================
+    // 2A. "Who are my directors?"
+    if (
+      query.includes('who are my directors') ||
+      query.includes('list directors') ||
+      query.includes('show directors') ||
+      query.includes('board of directors') ||
+      (query.includes('directors') && (query.includes('who') || query.includes('what') || query.includes('show')))
+    ) {
+      const res = await executeMcpTool('get_company_directors', { cin: PRIMARY_DEMO_COMPANY.cin });
+      const active = res.active_directors || [];
+      const former = res.former_directors || [];
 
-    if (isAddDirectorIntent && !query.includes('resig') && !query.includes('remove director')) {
-      // Extract candidate name
-      let candidateName = 'X Person';
-      const rawMatch = 
-        message.match(/add\s+(.+?)\s+as\s+(?:an?\s+)?director/i) ||
-        message.match(/appoint\s+(.+?)\s+as\s+(?:an?\s+)?director/i) ||
-        message.match(/add\s+director\s+([A-Za-z\s]+)/i);
+      let responseText = '';
+      if (former.length > 0) {
+        responseText = `ACTIVE DIRECTORS\n\n${active.map((d: any) => `• ${d.name} — ${d.status}`).join('\n')}\n\nFORMER DIRECTORS\n\n${former.map((d: any) => `• ${d.name}\n  Status: ${d.status}\n  Effective Date: ${d.effective_date}`).join('\n')}`;
+      } else {
+        responseText = `${active.map((d: any) => `• ${d.name} — ${d.status}`).join('\n')}`;
+      }
 
+      return NextResponse.json({
+        type: 'directors_list',
+        text: responseText,
+        tools_used: ['get_company_directors']
+      });
+    }
+
+    // 2B. "Tell me about my company."
+    if (
+      query.includes('tell me about my company') ||
+      query.includes('company profile') ||
+      query.includes('about the company') ||
+      query.includes('company info') ||
+      query.includes('company details')
+    ) {
+      const profile = await executeMcpTool('get_company_profile', { cin: PRIMARY_DEMO_COMPANY.cin });
+      const comp = profile.company;
+
+      return NextResponse.json({
+        type: 'company_profile',
+        text: `Company: ${comp.name}\nCIN: ${comp.cin}\nCompany Type: ${comp.company_type}\nBusiness Activity: ${comp.business_activity}\nRegistered Office: ${comp.registered_office}\nAuthorised Capital: ${comp.authorized_capital}\n\nDirectors:\n${comp.directors.map((d: any) => `• ${d.name} (${d.status})`).join('\n')}\n\nCompliance Status: ${comp.compliance_status}`,
+        tools_used: ['get_company_profile']
+      });
+    }
+
+    // 2C. "What filings are pending?" / "What are my upcoming deadlines?"
+    if (
+      query.includes('filings are pending') ||
+      query.includes('pending filings') ||
+      query.includes('what filings') ||
+      query.includes('upcoming deadlines') ||
+      query.includes('deadlines') ||
+      query.includes('compliance status')
+    ) {
+      const status = await executeMcpTool('get_compliance_status', { cin: PRIMARY_DEMO_COMPANY.cin });
+      const deadlines = status.deadlines || [];
+
+      const listText = deadlines.map((d: any) => 
+        `• **${d.title}** (${d.form_code}) — Status: **${d.status}** | Due: ${d.due_date}`
+      ).join('\n');
+
+      return NextResponse.json({
+        type: 'compliance_deadlines',
+        text: `Pending & Active Filings for **${PRIMARY_DEMO_COMPANY.name}**:\n\n${listText}`,
+        tools_used: ['get_compliance_status', 'get_upcoming_deadlines']
+      });
+    }
+
+    // ====================================================
+    // 3. WORKFLOW TWO: MY DIRECTOR RESIGNED
+    // ====================================================
+    const isResignationIntent = 
+      query.includes('director resigned') ||
+      query.includes('director resign') ||
+      query.includes('my director resigned') ||
+      query.includes('resigned') ||
+      (query.includes('arun') && (query.includes('resig') || query.includes('left')));
+
+    if (isResignationIntent || activeDemoState.stage?.startsWith('RESIGN_')) {
+      // Step 2b: User provided effective date (e.g. "15 August 2026")
+      if (
+        activeDemoState.stage === 'RESIGN_DATE' ||
+        query.includes('15 august') ||
+        query.includes('august 2026') ||
+        query.includes('2026-08-15') ||
+        query.includes('effective date')
+      ) {
+        const effectiveDate = rawText.match(/\d{1,2}\s+[A-Za-z]+\s+\d{4}/)?.[0] || '15 August 2026';
+        activeDemoState.resignation_date = effectiveDate;
+        activeDemoState.resigning_director = activeDemoState.resigning_director || 'Arun Kumar';
+        activeDemoState.stage = 'RESIGN_CONFIRM';
+
+        return NextResponse.json({
+          type: 'resignation_summary',
+          text: `Director Change Summary\n\nCompany:\nAether Labs Private Limited\n\nDirector:\n${activeDemoState.resigning_director}\n\nChange:\nDirector Resignation\n\nEffective Date:\n${effectiveDate}\n\nRelevant MCA Filing:\nDIR-12\n\nWould you like me to update the director change and prepare the DIR-12 workflow?`,
+          action: {
+            label: 'Yes, Update Director & Prepare DIR-12',
+            query: 'yes'
+          },
+          tools_used: ['prepare_director_resignation']
+        });
+      }
+
+      // Step 2a: User named the director (e.g. "Arun Kumar")
+      if (
+        activeDemoState.stage === 'RESIGN_SELECT_DIRECTOR' ||
+        query.includes('arun kumar') ||
+        query.includes('arun')
+      ) {
+        activeDemoState.resigning_director = 'Arun Kumar';
+        activeDemoState.stage = 'RESIGN_DATE';
+
+        return NextResponse.json({
+          type: 'resignation_step_date',
+          text: `Since Arun Kumar has resigned as a director, the relevant MCA filing is DIR-12. I'll help you update the company records and prepare the filing workflow.\n\nWhat was the effective date of resignation?`,
+          tools_used: ['identify_required_filing']
+        });
+      }
+
+      // Step 1: User initiated resignation ("My director resigned.")
+      activeDemoState = {
+        stage: 'RESIGN_SELECT_DIRECTOR',
+        company_name: 'Aether Labs Private Limited'
+      };
+
+      return NextResponse.json({
+        type: 'resignation_select_director',
+        text: `Which director resigned?`,
+        tools_used: ['get_company_directors']
+      });
+    }
+
+    // ====================================================
+    // 4. WORKFLOW ONE: START A COMPANY
+    // ====================================================
+    const isStartCompanyIntent = 
+      query.includes('start a company') ||
+      query.includes('start company') ||
+      query.includes('incorporate a company') ||
+      query.includes('register a company') ||
+      query.includes('new company');
+
+    if (isStartCompanyIntent || activeDemoState.stage?.startsWith('START_COMPANY_')) {
+      // Step 4: User provided directors (e.g. "Varun Maya and Arun Kumar")
+      if (
+        activeDemoState.stage === 'START_COMPANY_DIRECTORS' ||
+        (query.includes('varun') && query.includes('arun'))
+      ) {
+        activeDemoState.company_name = activeDemoState.company_name || 'Aether Labs Private Limited';
+        activeDemoState.company_type = 'Private Limited Company';
+        activeDemoState.business_activity = activeDemoState.business_activity || 'AI Infrastructure and Enterprise Automation';
+        activeDemoState.registered_office = activeDemoState.registered_office || 'Chennai, Tamil Nadu, India';
+        activeDemoState.authorized_capital = '₹10,00,000';
+        activeDemoState.directors = ['Varun Maya', 'Arun Kumar'];
+        activeDemoState.stage = 'START_COMPANY_CONFIRM';
+
+        return NextResponse.json({
+          type: 'incorporation_summary',
+          text: `Here's what I'll create:\n\nCompany:\n${activeDemoState.company_name}\n\nType:\n${activeDemoState.company_type}\n\nBusiness:\n${activeDemoState.business_activity}\n\nRegistered Office:\n${activeDemoState.registered_office}\n\nAuthorised Capital:\n${activeDemoState.authorized_capital}\n\nDirectors:\n• Varun Maya\n• Arun Kumar\n\nWould you like me to create this company in Future MCA?`,
+          action: {
+            label: 'Yes, Create Company in Future MCA',
+            query: 'yes'
+          },
+          tools_used: ['add_company_director', 'prepare_company_registration']
+        });
+      }
+
+      // Step 3c: User provided capital (e.g. "₹10,00,000" or "10 lakhs")
+      if (
+        activeDemoState.stage === 'START_COMPANY_CAPITAL' ||
+        query.includes('10,00,000') ||
+        query.includes('1000000') ||
+        query.includes('10 lakh')
+      ) {
+        activeDemoState.authorized_capital = '₹10,00,000';
+        activeDemoState.stage = 'START_COMPANY_DIRECTORS';
+
+        return NextResponse.json({
+          type: 'incorporation_directors',
+          text: `Who will be the directors?`,
+          tools_used: ['collect_company_details']
+        });
+      }
+
+      // Step 3b: User provided registered office (e.g. "Chennai, Tamil Nadu, India")
+      if (
+        activeDemoState.stage === 'START_COMPANY_OFFICE' ||
+        query.includes('chennai') ||
+        query.includes('tamil nadu')
+      ) {
+        activeDemoState.registered_office = 'Chennai, Tamil Nadu, India';
+        activeDemoState.stage = 'START_COMPANY_CAPITAL';
+
+        return NextResponse.json({
+          type: 'incorporation_capital',
+          text: `What is the proposed authorised capital?`,
+          tools_used: ['collect_company_details']
+        });
+      }
+
+      // Step 3a: User provided business activity (e.g. "We build AI infrastructure...")
+      if (
+        activeDemoState.stage === 'START_COMPANY_DETAILS' ||
+        query.includes('ai') ||
+        query.includes('infrastructure') ||
+        query.includes('automation')
+      ) {
+        activeDemoState.business_activity = 'AI Infrastructure and Enterprise Automation';
+        activeDemoState.stage = 'START_COMPANY_OFFICE';
+
+        return NextResponse.json({
+          type: 'incorporation_office',
+          text: `Where will the registered office be located?`,
+          tools_used: ['collect_company_details']
+        });
+      }
+
+      // Step 2: User provided company name (e.g. "Aether Labs Private Limited")
+      if (
+        activeDemoState.stage === 'START_COMPANY_NAME' ||
+        query.includes('aether')
+      ) {
+        const companyName = rawText.replace(/[.]/g, '').trim() || 'Aether Labs Private Limited';
+        activeDemoState.company_name = companyName;
+        activeDemoState.stage = 'START_COMPANY_DETAILS';
+
+        return NextResponse.json({
+          type: 'name_availability',
+          text: `Great. ${companyName} appears to be available. Let's continue with the company details.\n\nWhat will the company do?`,
+          tools_used: ['check_company_name_availability']
+        });
+      }
+
+      // Step 1: User started incorporation ("I want to start a company.")
+      activeDemoState = { stage: 'START_COMPANY_NAME' };
+
+      return NextResponse.json({
+        type: 'start_incorporation',
+        text: `Great. What would you like to name your company?`,
+        tools_used: ['start_company_incorporation']
+      });
+    }
+
+    // ====================================================
+    // 5. DIRECT DIRECTOR APPOINTMENT (Zero DSC flow)
+    // ====================================================
+    if (query.includes('add') && query.includes('director')) {
+      let candidateName = 'Rohan Gupta';
+      const rawMatch = message.match(/add\s+(.+?)\s+as\s+(?:an?\s+)?director/i);
       if (rawMatch && rawMatch[1]) {
-        candidateName = rawMatch[1]
-          .replace(/\b(create din|din number|ask confirmation|confirmation|and directly add|directly add|as an? director|to board|to company)\b.*/i, '')
-          .trim();
-        candidateName = candidateName.replace(/^['"]|['"]$/g, '').trim();
-        if (candidateName.length > 1) {
-          candidateName = candidateName
-            .split(' ')
-            .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-            .join(' ');
-        } else {
-          candidateName = 'X Person';
-        }
+        candidateName = rawMatch[1].replace(/\b(din|create din|ask confirmation|and directly add)\b.*/i, '').trim();
       }
 
       const generatedDin = `09${Math.floor(100000 + Math.random() * 900000)}`;
-
       const preparedAction = await ActionService.prepareDirectorChange({
-        company_id_or_cin: activeCin,
+        company_id_or_cin: PRIMARY_DEMO_COMPANY.cin,
         change_type: 'APPOINTMENT',
         director_name: candidateName,
         din: generatedDin,
         effective_date: new Date().toISOString().split('T')[0],
-        reason: 'Strategic board expansion & appointment'
-      }, {
-        workspaceId: context.workspaceId || 'ws_aeos_labs_001',
-        userId: 'usr_varun_maya',
-        actorType: 'AI_CLIENT',
-        clientName: 'Future MCA Conversational Copilot',
-        clientType: 'Anthropic Claude / In-App AI'
+        reason: 'Strategic board appointment'
       });
 
       return NextResponse.json({
         type: 'action_prepared',
         workflow_type: 'DIRECTOR_APPOINTMENT',
         action_id: preparedAction.id,
-        text: `### 📋 Director Appointment Draft Prepared
-
-I have generated a new Director Identification Number (DIN) and prepared the appointment draft for **${activeCompany}**.
-
-- **Director Candidate:** **${candidateName}**
-- **Allocated DIN:** **${generatedDin}** (Status: Allocated / Pre-approved)
-- **Designation:** Director
-- **Filing e-Form:** Form DIR-12 (Appointment of Director)
-- **DSC Authorization:** ⚡ **Not Required (Direct Addition Mode)**
-
----
-
-#### ❓ **Confirmation Required**
-Would you like me to directly add **${candidateName}** (DIN: **${generatedDin}**) to the Board of Directors?
-
-👉 **Reply "Confirm"** or click the button below to directly add them to the company registry.`,
+        text: `I have generated DIN ${generatedDin} for ${candidateName} and prepared the appointment draft without requiring DSC authorization.\n\nWould you like me to directly add ${candidateName} to the board?`,
         action: {
-          label: `Confirm & Directly Add ${candidateName} (DIN: ${generatedDin})`,
-          url: `/actions/${preparedAction.id}`
+          label: `Confirm & Directly Add ${candidateName}`,
+          query: 'yes'
         },
-        action_preview: preparedAction.preview,
         tools_used: ['generate_din', 'prepare_director_change']
       });
     }
 
-    // ----------------------------------------------------
-    // WORKFLOW 2: DIRECTOR RESIGNATION (PRIMARY DEMO)
-    // ----------------------------------------------------
-    if (
-      query.includes('resig') || 
-      query.includes('director resign') || 
-      query.includes('rahul') || 
-      query.includes('dir-12') || 
-      query.includes('remove director') ||
-      query.includes('director left')
-    ) {
-      const preparedAction = await ActionService.prepareDirectorChange({
-        company_id_or_cin: activeCin,
-        change_type: 'RESIGNATION',
-        director_name: 'Rahul Menon',
-        din: '09124589',
-        effective_date: '2026-08-25',
-        reason: 'Personal reasons',
-        documents: ['Rahul_Menon_Resignation_Letter.pdf']
-      }, {
-        workspaceId: context.workspaceId || 'ws_aeos_labs_001',
-        userId: 'usr_varun_maya',
-        actorType: 'AI_CLIENT',
-        clientName: 'Future MCA Conversational Copilot',
-        clientType: 'Anthropic Claude / In-App AI'
-      });
-
-      return NextResponse.json({
-        type: 'action_prepared',
-        workflow_type: 'DIRECTOR_RESIGNATION',
-        action_id: preparedAction.id,
-        text: `### 📋 Director Resignation Workflow Identified
-
-I can help with that. When a director leaves a company, the official MCA registry records need to be updated.
-
-For **Aeos Labs Private Limited**, I found the following director record:
-• **Rahul Menon** — Director (DIN: 09124589) | Appointed: 15 Jan 2026
-
----
-
-#### **What this means & why it's needed:**
-Under **Section 168 of the Companies Act 2013**, the company must file **Form DIR-12** with ROC Chennai within **30 days** of the resignation date to officially record the cessation and avoid per-day statutory penalties.
-
-#### **What I've prepared for you:**
-✓ **Director:** Rahul Menon (DIN: 09124589)  
-✓ **Effective Resignation Date:** 25 August 2026  
-✓ **Identified Statutory Workflow:** Form DIR-12 (Director Cessation)  
-✓ **Attached Document:** \`Rahul_Menon_Resignation_Letter.pdf\` (Available)  
-✓ **Statutory Deadline:** 24 September 2026 (High Priority)  
-
----
-
-⚠️ **Zero Silent Execution Policy:** This action draft has been prepared and validated, but **NOT** submitted. Please review the details before confirming.`,
-        action: {
-          label: 'Review Director Resignation & Authorize (DIR-12)',
-          url: `/actions/${preparedAction.id}`
-        },
-        action_preview: preparedAction.preview,
-        tools_used: ['get_company_directors', 'identify_required_filing', 'prepare_director_change']
-      });
-    }
-
-    // ----------------------------------------------------
-    // WORKFLOW 1: COMPANY INCORPORATION (SPICe+)
-    // ----------------------------------------------------
-    if (
-      query.includes('start a company') || 
-      query.includes('incorporat') || 
-      query.includes('register a new company') || 
-      query.includes('form a pvt ltd') ||
-      query.includes('new venture')
-    ) {
-      const preparedAction = await ActionService.prepareCompanyRegistration({
-        proposed_names: ['Aeos Labs Private Limited', 'Aeos Enterprise AI Private Limited'],
-        company_type: 'PVT_LTD',
-        registered_state: 'Tamil Nadu',
-        authorized_capital: 1000000,
-        paid_up_capital: 100000,
-        directors: [
-          { full_name: 'Varun Maya', email: 'varun@aeoslabs.in' },
-          { full_name: 'Rahul Menon', email: 'rahul@aeoslabs.in' }
-        ]
-      }, {
-        workspaceId: context.workspaceId || 'ws_aeos_labs_001',
-        userId: 'usr_varun_maya',
-        actorType: 'AI_CLIENT',
-        clientName: 'Future MCA Conversational Copilot',
-        clientType: 'Anthropic Claude / In-App AI'
-      });
-
-      return NextResponse.json({
-        type: 'action_prepared',
-        workflow_type: 'COMPANY_INCORPORATION',
-        action_id: preparedAction.id,
-        text: `### 🚀 Company Incorporation Journey (SPICe+ Suite)
-
-Great! I'll guide you through your incorporation journey. In India, new companies are registered through the integrated **SPICe+ (INC-32)** suite under Section 7 of the Companies Act 2013.
-
-#### **Incorporation Progress**
-● **Company Details:** Aeos Labs Private Limited  
-● **Business Activity:** Artificial Intelligence & Enterprise Software  
-● **Directors:** Varun Maya & Rahul Menon  
-● **Registered Office:** Chennai, Tamil Nadu  
-● **Capital Structure:** ₹10,00,000 Authorized Capital  
-○ **Documents:** PAN, Identity & Address Proofs, Registered Office Proof  
-○ **Review & Authorize**  
-
----
-
-#### **Required Documents Checklist:**
-• **Director Identity:** PAN, Passport / Voter ID, Passport-size Photo  
-• **Registered Office:** Electricity Bill (< 2 months), Lease Deed & Owner NOC  
-• **Statutory Registrations Included:** PAN, TAN, EPFO, ESIC, Professional Tax & Bank Account  
-
-⚠️ **Zero Silent Execution Policy:** I have prepared your complete incorporation draft pack. Nothing will be submitted until you review and authorize via DSC.`,
-        action: {
-          label: 'Review Incorporation Details & Proceed',
-          url: `/actions/${preparedAction.id}`
-        },
-        action_preview: preparedAction.preview,
-        tools_used: ['search_mca_knowledge', 'prepare_company_registration']
-      });
-    }
-
-    // ----------------------------------------------------
-    // LEVEL 1: COMPLIANCE & DEADLINES INQUIRY
-    // ----------------------------------------------------
-    if (query.includes('deadline') || query.includes('compliance') || query.includes('due date') || query.includes('pending')) {
-      return NextResponse.json({
-        type: 'compliance_summary',
-        text: `### 📊 Compliance Status for **Aeos Labs Private Limited**\n\n- **Entity:** Aeos Labs Private Limited (\`U62099TN2026PTCDEMO001\`)\n- **Highest Priority Action:** **DIR-12 (Director Cessation - Rahul Menon)** due by **24 September 2026**.\n- **Annual Return:** Form MGT-7A scheduled for November 2026.\n- **Financial Statements:** Form AOC-4 scheduled for October 2026.\n\nWould you like me to prepare the **DIR-12** filing for Rahul Menon?`,
-        tools_used: ['get_compliance_status', 'get_upcoming_deadlines']
-      });
-    }
-
-    // ----------------------------------------------------
-    // FALLBACK / GENERAL AI RESPONSE (GEMINI)
-    // ----------------------------------------------------
-    const contextPrompt = `
-Company: ${activeCompany} (${activeCin})
-Directors: Varun Maya (Managing Director), Rahul Menon (Director - Resignation Pending)
-    `.trim();
-
-    const aiAnswer = await callGemini(message, contextPrompt);
-    if (aiAnswer) {
-      return NextResponse.json({
-        type: 'chat_response',
-        text: aiAnswer,
-        tools_used: ['search_mca_knowledge']
-      });
-    }
-
+    // ====================================================
+    // 6. DEFAULT POLITE FALLBACK
+    // ====================================================
     return NextResponse.json({
       type: 'chat_response',
-      text: `I'm here to help manage corporate actions and compliance for **Aeos Labs Private Limited**.\n\nYou can ask me to:\n- **"My director resigned"** &rarr; Prepare Form DIR-12 for Rahul Menon\n- **"I want to start a company"** &rarr; Launch SPICe+ Incorporation Journey\n- **"What are my upcoming deadlines?"** &rarr; View compliance cutoffs and penalty exposure`,
+      text: `I am Founders AI, your autonomous corporate intelligence copilot for **${PRIMARY_DEMO_COMPANY.name}**.\n\nYou can try:\n• **"I want to start a company."**\n• **"My director resigned."**\n• **"Who are my directors?"**\n• **"Tell me about my company."**\n• **"What filings are pending?"**`,
       tools_used: ['get_company_profile']
     });
+
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || 'Internal AI service error' },

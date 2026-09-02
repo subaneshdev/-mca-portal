@@ -3,23 +3,23 @@ import { Company, Director, ComplianceDeadline } from '@/types';
 import { ActionService } from './actionService';
 
 export const PRIMARY_DEMO_COMPANY: Company = {
-  id: 'comp_aeos_001',
-  workspace_id: 'ws_aeos_labs_001',
-  cin: 'U62099TN2026PTCDEMO001',
-  name: 'Aeos Labs Private Limited',
+  id: 'comp_aether_001',
+  workspace_id: 'ws_aether_labs_001',
+  cin: 'U62099TN2026PTC145678',
+  name: 'Aether Labs Private Limited',
   legal_type: 'Private Limited Company',
   status: 'ACTIVE',
-  paid_up_capital: 100000,
+  paid_up_capital: 1000000,
   authorized_capital: 1000000,
   incorporation_date: '2026-01-15',
   roc_jurisdiction: 'ROC Chennai',
-  registered_office: 'Level 4, IITM Research Park, Kanagam Road, Taramani, Chennai, Tamil Nadu – 600113, India',
-  email: 'contact@aeoslabs.in',
-  pan: 'AADCA1234F',
-  gst: '33AADCA1234F1Z5',
-  next_action: 'DIR-12 (Director Resignation - Rahul Menon) Due in 22 days',
+  registered_office: 'Chennai, Tamil Nadu, India',
+  email: 'contact@aetherlabs.in',
+  pan: 'AABCA1234F',
+  gst: '33AABCA1234F1Z5',
+  next_action: 'Statutory compliance tracking active',
   compliance_count: {
-    critical: 1,
+    critical: 0,
     action_required: 1,
     upcoming: 2
   }
@@ -28,30 +28,30 @@ export const PRIMARY_DEMO_COMPANY: Company = {
 export const PRIMARY_DEMO_DIRECTORS: Director[] = [
   {
     id: 'dir_varun_001',
-    company_id: 'comp_aeos_001',
+    company_id: 'comp_aether_001',
     din: '08945120',
     full_name: 'Varun Maya',
-    designation: 'Managing Director',
+    designation: 'Director',
     appointment_date: '2026-01-15',
     din_status: 'APPROVED',
     dsc_status: 'ACTIVE',
     dsc_expiry: '2028-11-30',
     kyc_status: 'COMPLIANT',
-    email: 'varun@aeoslabs.in',
+    email: 'varun@aetherlabs.in',
     phone: '+91 98401 23456'
   },
   {
-    id: 'dir_rahul_002',
-    company_id: 'comp_aeos_001',
+    id: 'dir_arun_002',
+    company_id: 'comp_aether_001',
     din: '09124589',
-    full_name: 'Rahul Menon',
+    full_name: 'Arun Kumar',
     designation: 'Director',
     appointment_date: '2026-01-15',
     din_status: 'APPROVED',
     dsc_status: 'ACTIVE',
-    dsc_expiry: '2026-09-15',
+    dsc_expiry: '2027-09-15',
     kyc_status: 'COMPLIANT',
-    email: 'rahul@aeoslabs.in',
+    email: 'arun@aetherlabs.in',
     phone: '+91 98402 34567'
   }
 ];

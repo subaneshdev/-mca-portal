@@ -141,7 +141,20 @@ export class CompanyService {
         .order('appointment_date', { ascending: false });
 
       if (!error && data && data.length > 0) {
-        return data;
+        return data.map((d: any) => {
+          const mem = PRIMARY_DEMO_DIRECTORS.find(
+            p => p.din === d.din || p.full_name.toLowerCase() === d.full_name?.toLowerCase()
+          );
+          if (mem && (mem.status === 'RESIGNED' || mem.cessation_date)) {
+            return {
+              ...d,
+              status: mem.status,
+              cessation_date: mem.cessation_date,
+              designation: mem.designation
+            };
+          }
+          return d;
+        });
       }
     } catch {
       // fallback
@@ -286,6 +299,80 @@ export class CompanyService {
     }
 
     return newDir as Director;
+  }
+
+  /**
+   * Resign a director from a company, update memory & DB, and register DIR-12 filing.
+   */
+  static async resignDirector(
+    companyIdOrCin: string,
+    directorName: string,
+    effectiveDate: string = '2026-08-15',
+    notes?: string
+  ): Promise<{ success: boolean; director: any; form: string; srn: string }> {
+    const srn = `SRN_DIR12_${Date.now()}`;
+    const cleanName = (directorName || '').toLowerCase().trim();
+
+    // 1. Update in-memory store
+    const dirIndex = PRIMARY_DEMO_DIRECTORS.findIndex(
+      d => d.full_name.toLowerCase().includes(cleanName) || cleanName.includes(d.full_name.toLowerCase())
+    );
+
+    let updatedDir: any = null;
+    if (dirIndex >= 0) {
+      PRIMARY_DEMO_DIRECTORS[dirIndex] = {
+        ...PRIMARY_DEMO_DIRECTORS[dirIndex],
+        cessation_date: effectiveDate,
+        status: 'RESIGNED' as any,
+        designation: 'Director (Resigned)'
+      };
+      updatedDir = PRIMARY_DEMO_DIRECTORS[dirIndex];
+    } else {
+      updatedDir = {
+        id: `dir_res_${Date.now()}`,
+        company_id: companyIdOrCin,
+        din: '09124589',
+        full_name: directorName,
+        designation: 'Director (Resigned)',
+        appointment_date: '2026-01-15',
+        cessation_date: effectiveDate,
+        status: 'RESIGNED' as any,
+        din_status: 'APPROVED',
+        dsc_status: 'ACTIVE',
+        kyc_status: 'COMPLIANT'
+      };
+      PRIMARY_DEMO_DIRECTORS.push(updatedDir);
+    }
+
+    // 2. Update company next_action and compliance
+    PRIMARY_DEMO_COMPANY.next_action = `DIR-12 filed for ${directorName} resignation (SRN: ${srn})`;
+    PRIMARY_DEMO_COMPANY.compliance_count = {
+      critical: 0,
+      action_required: 1,
+      upcoming: 2
+    };
+
+    // 3. Try DB update
+    try {
+      if (updatedDir.id) {
+        await supabase
+          .from('directors')
+          .update({
+            cessation_date: effectiveDate,
+            din_status: 'APPROVED'
+          })
+          .eq('id', updatedDir.id);
+      }
+    } catch {
+      // offline fallback
+    }
+
+    return {
+      success: true,
+      director: updatedDir,
+      form: 'DIR-12',
+      srn
+    };
   }
 
   /**

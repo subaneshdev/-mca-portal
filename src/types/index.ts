@@ -59,6 +59,7 @@ export interface Director {
   designation: string;
   appointment_date: string;
   cessation_date?: string | null;
+  status?: 'ACTIVE' | 'RESIGNED';
   din_status: 'APPROVED' | 'DEACTIVATED' | 'DISQUALIFIED';
   dsc_status: 'ACTIVE' | 'EXPIRING_SOON' | 'EXPIRED' | 'NOT_ASSOCIATED';
   dsc_expiry?: string;

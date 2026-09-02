@@ -75,8 +75,17 @@ export default function ActionDetailPage() {
         actorType: 'USER',
         clientName: 'Future MCA Web Portal'
       });
-      setAction(res.action);
-      setSuccessToast(res.message);
+      if (!res.authorization_required) {
+        const exec = await ActionService.executeAction(action.id, undefined, {
+          actorType: 'USER',
+          clientName: 'Future MCA Web Portal'
+        });
+        setAction(exec.action);
+        setSuccessToast(`Action successfully confirmed & executed! Official Reference SRN: ${exec.reference_number}`);
+      } else {
+        setAction(res.action);
+        setSuccessToast(res.message);
+      }
       await loadActionData();
     } catch (err: any) {
       alert(err.message || 'Confirmation failed');

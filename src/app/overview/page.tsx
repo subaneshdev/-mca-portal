@@ -112,7 +112,7 @@ export default function OverviewDashboard() {
               Good morning, {caName}.
             </h1>
             <p className="text-xs text-neutral-600 mt-0.5">
-              Managing corporate compliance portfolio, statutory action queues, and filings for Aeos Labs.
+              Managing corporate compliance portfolio, statutory action queues, and filings for Aether Labs.
             </p>
           </div>
 

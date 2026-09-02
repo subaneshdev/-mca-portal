@@ -10,6 +10,7 @@ import {
 } from '@/types/actions';
 import { CompanyService } from './companyService';
 import { FilingService } from './filingService';
+import { PRIMARY_DEMO_COMPANY } from './seedService';
 
 // In-memory cache for fast responsive fallbacks and test environments
 const ACTION_STORE = new Map<string, McpAction>();
@@ -241,9 +242,8 @@ export class ActionService {
       preview,
       confirmation_token: token,
       confirmation_expires_at: expiresAt,
-      authorization_required: true,
-      authorization_type: 'DSC_SIGNATURE',
-      authorization_status: 'PENDING',
+      authorization_required: false,
+      authorization_status: 'NOT_REQUIRED',
       client_metadata: {
         client_name: context.clientName || 'Claude',
         client_type: context.clientType || 'mcp',
@@ -312,8 +312,8 @@ export class ActionService {
       'PAN / Identity verification proof'
     ];
 
-    // For direct appointments, DSC authorization is NOT required
-    const isAuthRequired = isResignation;
+    // For hackathon demo, DSC authorization is bypassed for frictionless execution
+    const isAuthRequired = false;
 
     const preview: ActionPreview = {
       form_code: formCode,
@@ -898,6 +898,12 @@ export class ActionService {
           action.execution_receipt = receipt;
           await this.persistAction(action);
         } else {
+          await CompanyService.resignDirector(
+            action.company_id || PRIMARY_DEMO_COMPANY.cin,
+            action.payload?.director_name || 'Arun Kumar',
+            action.payload?.effective_date || '15 August 2026'
+          );
+
           await supabase
             .from('directors')
             .update({ status: 'RESIGNED', din_status: 'CESSATION_FILED' })

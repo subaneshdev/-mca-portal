@@ -55,7 +55,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     }
     return {
       id: 'usr_varun_maya',
-      email: 'varun@aeoslabs.in',
+      email: 'varun@aetherlabs.in',
       full_name: 'Varun Maya',
       persona: 'founder',
       role: 'FOUNDER',
