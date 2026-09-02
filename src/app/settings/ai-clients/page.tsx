@@ -150,6 +150,45 @@ export default function AiClientsAndMcpPage() {
             </button>
           </div>
 
+          {/* 3 Easy Steps */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200 space-y-1">
+              <div className="flex items-center space-x-2">
+                <span className="w-5 h-5 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-xs">
+                  1
+                </span>
+                <span className="text-xs font-bold text-neutral-900">Copy JSON Config</span>
+              </div>
+              <p className="text-[11px] text-neutral-600">
+                Click &ldquo;Copy Claude Config&rdquo; button to copy the MCP server configuration.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200 space-y-1">
+              <div className="flex items-center space-x-2">
+                <span className="w-5 h-5 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-xs">
+                  2
+                </span>
+                <span className="text-xs font-bold text-neutral-900">Paste in Claude Settings</span>
+              </div>
+              <p className="text-[11px] text-neutral-600">
+                Open Claude Desktop &rarr; <strong>Settings &rarr; Developer &rarr; Edit Config</strong> (<code className="text-[10px] font-mono">claude_desktop_config.json</code>).
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200 space-y-1">
+              <div className="flex items-center space-x-2">
+                <span className="w-5 h-5 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-xs">
+                  3
+                </span>
+                <span className="text-xs font-bold text-neutral-900">Restart & Run Prompts</span>
+              </div>
+              <p className="text-[11px] text-neutral-600">
+                Restart Claude and prompt: <em>&ldquo;My director Rahul Menon resigned from Aeos Labs&rdquo;</em>.
+              </p>
+            </div>
+          </div>
+
           <div className="bg-[#0A0A0A] rounded-lg p-4 font-mono text-xs text-[#EFF6FF] overflow-x-auto">
             <pre>{claudeConfigJson}</pre>
           </div>
