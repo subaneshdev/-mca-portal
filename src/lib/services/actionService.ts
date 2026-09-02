@@ -914,6 +914,31 @@ export class ActionService {
             .update({ status: 'FILED', urgency: 'completed' })
             .eq('form_code', 'DIR-12');
         }
+      } else if (action.action_type === 'COMPANY_REGISTRATION') {
+        const proposedNames = action.payload?.proposed_names || [action.payload?.company_name || action.company_name || 'New Company'];
+        const primaryName = proposedNames[0];
+        const state = action.payload?.registered_state || 'Tamil Nadu';
+        const office = `${state}, India`;
+        const companyType = 'Private Limited Company';
+        const capital = action.payload?.authorized_capital || 100000;
+        const directorsPayload = action.payload?.directors || [];
+
+        const createdComp = await CompanyService.createCompany({
+          name: primaryName,
+          cin: `U62099TN2026PTC${Math.floor(100000 + Math.random() * 900000)}`,
+          legal_type: companyType,
+          registered_office: office,
+          authorized_capital: capital,
+          paid_up_capital: action.payload?.paid_up_capital || capital,
+          workspace_id: action.workspace_id || context.workspaceId
+        }, directorsPayload.map((d: any) => ({
+          full_name: typeof d === 'string' ? d : d.full_name || d.name,
+          designation: 'Director',
+          din_status: 'APPROVED',
+          dsc_status: 'ACTIVE'
+        })));
+
+        action.company_id = createdComp.id;
       }
     } catch {
       // offline fallback
