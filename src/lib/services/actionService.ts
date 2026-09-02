@@ -97,25 +97,24 @@ export class ActionService {
   }
 
   /**
+  /**
    * List all actions for workspace or company
    */
   static async listActions(workspaceId?: string, companyId?: string): Promise<McpAction[]> {
     try {
       let query = supabase.from('mcp_actions').select('*').order('created_at', { ascending: false });
-      if (workspaceId) {
-        query = query.or(`workspace_id.eq.${workspaceId},workspace_id.is.null`);
-      }
+      
       if (companyId) {
-        query = query.eq('company_id', companyId);
+        query = query.or(`company_id.eq.${companyId},company_id.is.null`);
       }
+
       const { data, error } = await query;
       if (!error && data && data.length > 0) {
-        // Merge into in-memory store
         data.forEach((act: McpAction) => ACTION_STORE.set(act.id, act));
         return data;
       }
-    } catch {
-      // fallback
+    } catch (err) {
+      console.error('Error fetching mcp_actions from Supabase:', err);
     }
 
     const memoryActions = Array.from(ACTION_STORE.values()).sort(
@@ -123,7 +122,7 @@ export class ActionService {
     );
 
     if (companyId) {
-      return memoryActions.filter(a => a.company_id === companyId);
+      return memoryActions.filter(a => !a.company_id || a.company_id === companyId);
     }
     return memoryActions;
   }
@@ -921,6 +920,7 @@ export class ActionService {
         id: action.id,
         workspace_id: action.workspace_id,
         company_id: action.company_id,
+        company_name: action.company_name,
         user_id: action.user_id,
         action_type: action.action_type,
         status: action.status,
@@ -942,10 +942,10 @@ export class ActionService {
       });
 
       if (error) {
-        // Fallback safely
+        console.error('Error persisting mcp_action to Supabase:', error);
       }
-    } catch {
-      // local memory fallback
+    } catch (err) {
+      console.error('Exception in persistAction:', err);
     }
   }
 }

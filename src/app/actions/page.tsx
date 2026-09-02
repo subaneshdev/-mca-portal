@@ -34,7 +34,7 @@ export default function ActionsHubPage() {
   const loadActions = async () => {
     setLoading(true);
     try {
-      const data = await ActionService.listActions(currentWorkspace?.id, selectedCompany?.id);
+      const data = await ActionService.listActions();
       setActions(data);
     } catch (e) {
       console.error(e);
