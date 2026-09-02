@@ -279,7 +279,7 @@ export function ChatContent() {
             <div className="w-7 h-7 rounded-lg bg-white/10 border border-white/20 text-white flex items-center justify-center font-bold text-xs group-hover:bg-white/20 transition-all">
               M
             </div>
-            <span className="font-semibold text-sm tracking-tight text-white">Ruixen AI</span>
+            <span className="font-semibold text-sm tracking-tight text-white">Founders AI</span>
           </Link>
           <span className="text-white/30 text-xs hidden sm:inline">•</span>
           <span className="text-xs text-neutral-300 font-medium hidden sm:inline truncate">
@@ -315,18 +315,18 @@ export function ChatContent() {
 
       {/* Main Center Area */}
       {!hasStartedChat ? (
-        /* 1. Welcome Centered Title Section (Ruixen Moon Style) */
+        /* 1. Welcome Centered Title Section (Founders AI) */
         <div className="relative z-10 flex-1 w-full flex flex-col items-center justify-center px-4">
           <div className="text-center max-w-2xl px-4 animate-in fade-in zoom-in-95 duration-500">
             <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white text-xs mb-4 backdrop-blur-md">
               <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Founder AI &bull; Autonomous Corporate Copilot</span>
+              <span>Autonomous MCA Corporate Intelligence</span>
             </div>
             <h1 className="text-4xl sm:text-6xl font-semibold text-white tracking-tight drop-shadow-md">
-              Ruixen AI
+              Founders AI
             </h1>
             <p className="mt-3 text-sm sm:text-base text-neutral-200 max-w-xl mx-auto leading-relaxed">
-              Build something amazing — just start typing below.
+              Your autonomous corporate copilot for MCA filings, director governance, and instant compliance.
             </p>
           </div>
         </div>
@@ -503,7 +503,7 @@ export function ChatContent() {
 
 export default function ChatPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center text-xs font-mono">Loading Ruixen AI...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center text-xs font-mono">Loading Founders AI...</div>}>
       <ChatContent />
     </Suspense>
   );

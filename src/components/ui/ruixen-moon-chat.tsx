@@ -61,8 +61,8 @@ interface RuixenMoonChatProps {
 }
 
 export default function RuixenMoonChat({
-  title = "Ruixen AI",
-  subtitle = "Build something amazing — just start typing below.",
+  title = "Founders AI",
+  subtitle = "Your autonomous corporate copilot for MCA filings, director governance, and instant compliance.",
   onSendMessage,
   quickActions,
 }: RuixenMoonChatProps = {}) {
