@@ -930,6 +930,14 @@ export class ActionService {
         const companyType = 'Private Limited Company';
         const capital = action.payload?.authorized_capital || 100000;
         const directorsPayload = action.payload?.directors || [];
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const validWsId = (action.workspace_id && isUuid.test(action.workspace_id))
+          ? action.workspace_id
+          : (context.workspaceId && isUuid.test(context.workspaceId))
+          ? context.workspaceId
+          : null;
+
+        const firstEmail = directorsPayload.find((d: any) => typeof d === 'object' && d.email)?.email || 'contact@futuremca.in';
 
         const createdComp = await CompanyService.createCompany({
           name: primaryName,
@@ -938,15 +946,18 @@ export class ActionService {
           registered_office: office,
           authorized_capital: capital,
           paid_up_capital: action.payload?.paid_up_capital || capital,
-          workspace_id: action.workspace_id || context.workspaceId
+          email: firstEmail,
+          workspace_id: validWsId
         }, directorsPayload.map((d: any) => ({
           full_name: typeof d === 'string' ? d : d.full_name || d.name,
+          email: typeof d === 'object' ? (d.email || 'director@futuremca.in') : 'director@futuremca.in',
           designation: 'Director',
           din_status: 'APPROVED',
           dsc_status: 'ACTIVE'
         })));
 
         action.company_id = createdComp.id;
+        await this.persistAction(action);
       }
     } catch {
       // offline fallback
@@ -954,9 +965,12 @@ export class ActionService {
 
     // 5. Also register into applications / filings in Supabase so it shows on the UI dashboards
     try {
-      if (action.company_id || action.payload?.company_cin) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const validCompId = (action.company_id && isUuid.test(action.company_id)) ? action.company_id : null;
+
+      if (validCompId || action.payload?.company_cin) {
         await supabase.from('filings').insert({
-          company_id: action.company_id || '',
+          company_id: validCompId,
           form_code: action.preview.form_code || 'DIR-12',
           form_title: action.preview.action_summary,
           category: action.action_type,
@@ -970,7 +984,7 @@ export class ActionService {
         });
 
         await supabase.from('applications').insert({
-          company_id: action.company_id || '',
+          company_id: validCompId,
           application_no: srn,
           title: action.preview.action_summary,
           type: action.action_type === 'DIRECTOR_CHANGE' ? 'DIRECTOR_CHANGE' : 'ANNUAL_FILING',

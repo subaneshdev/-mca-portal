@@ -14,7 +14,8 @@ export class CompanyService {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (workspaceId) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (workspaceId && isUuid.test(workspaceId)) {
         query = query.or(`workspace_id.eq.${workspaceId},workspace_id.is.null`);
       }
 
@@ -69,7 +70,7 @@ export class CompanyService {
     try {
       let query = supabase.from('companies').select('*');
 
-      if (workspaceId) {
+      if (workspaceId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workspaceId)) {
         query = query.eq('workspace_id', workspaceId);
       }
 
@@ -186,28 +187,37 @@ export class CompanyService {
     companyData: Partial<Company>,
     directorsList: Partial<Director>[] = []
   ): Promise<Company> {
-    const assignedId = companyData.id || `comp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const assignedId = (companyData.id && isUuid.test(companyData.id))
+      ? companyData.id
+      : (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `comp_${Date.now()}`);
+
+    const stateCode = (companyData.registered_office || '').toLowerCase().includes('karnataka') ? 'KA' :
+                      (companyData.registered_office || '').toLowerCase().includes('maharashtra') ? 'MH' :
+                      (companyData.registered_office || '').toLowerCase().includes('delhi') ? 'DL' : 'TN';
+    const cin = companyData.cin?.toUpperCase() || `U62099${stateCode}2026PTC${Math.floor(100000 + Math.random() * 900000)}`;
+
     const newCompany: any = {
       id: assignedId,
-      cin: companyData.cin?.toUpperCase() || `U62099TN2026PTC${Math.floor(100000 + Math.random() * 900000)}`,
+      cin,
       name: companyData.name || 'New Venture Private Limited',
       legal_type: companyData.legal_type || 'Private Limited Company',
       status: companyData.status || 'ACTIVE',
       paid_up_capital: companyData.paid_up_capital || 100000,
       authorized_capital: companyData.authorized_capital || 1000000,
       incorporation_date: companyData.incorporation_date || new Date().toISOString().split('T')[0],
-      roc_jurisdiction: companyData.roc_jurisdiction || 'ROC Chennai',
-      registered_office: companyData.registered_office || 'Tamil Nadu, India',
-      email: companyData.email || '',
+      roc_jurisdiction: companyData.roc_jurisdiction || (stateCode === 'KA' ? 'ROC Bangalore' : stateCode === 'MH' ? 'ROC Mumbai' : 'ROC Chennai'),
+      registered_office: companyData.registered_office || `${stateCode === 'KA' ? 'Karnataka' : stateCode === 'MH' ? 'Maharashtra' : 'Tamil Nadu'}, India`,
+      email: companyData.email || 'compliance@futuremca.in',
       pan: companyData.pan || '',
       gst: companyData.gst || '',
-      workspace_id: companyData.workspace_id || null
+      workspace_id: (companyData.workspace_id && isUuid.test(companyData.workspace_id)) ? companyData.workspace_id : null
     };
 
     let createdDirectors: Director[] = [];
     if (directorsList.length > 0) {
       createdDirectors = directorsList.map(d => ({
-        id: `dir_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        id: (d.id && isUuid.test(d.id)) ? d.id : (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `dir_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`),
         company_id: newCompany.id,
         din: d.din || `09${Math.floor(100000 + Math.random() * 900000)}`,
         full_name: d.full_name || 'Director',
@@ -217,7 +227,7 @@ export class CompanyService {
         dsc_status: d.dsc_status || 'ACTIVE',
         dsc_expiry: d.dsc_expiry || '2027-12-31',
         kyc_status: d.kyc_status || 'COMPLIANT',
-        email: d.email || '',
+        email: d.email || 'director@futuremca.in',
         phone: d.phone || ''
       }));
     }
@@ -242,25 +252,56 @@ export class CompanyService {
       DYNAMIC_DIRECTORS.set(assignedId, createdDirectors);
     }
 
-    // Persist to Supabase
+    // Persist to Supabase with valid types
     try {
-      const { data } = await supabase
+      const dbPayload: any = {
+        cin: newCompany.cin,
+        name: newCompany.name,
+        legal_type: newCompany.legal_type,
+        status: newCompany.status,
+        paid_up_capital: newCompany.paid_up_capital,
+        authorized_capital: newCompany.authorized_capital,
+        incorporation_date: newCompany.incorporation_date,
+        roc_jurisdiction: newCompany.roc_jurisdiction,
+        registered_office: newCompany.registered_office,
+        email: newCompany.email || 'compliance@futuremca.in',
+        pan: newCompany.pan || null,
+        gst: newCompany.gst || null,
+        workspace_id: newCompany.workspace_id
+      };
+      if (isUuid.test(assignedId)) {
+        dbPayload.id = assignedId;
+      }
+
+      const { data, error } = await supabase
         .from('companies')
-        .insert(newCompany)
+        .insert(dbPayload)
         .select()
         .single();
 
-      if (data) {
+      if (!error && data) {
         createdCompany.id = data.id;
-      }
+        newCompany.id = data.id;
+        DYNAMIC_DIRECTORS.set(data.id, createdDirectors);
 
-      if (createdDirectors.length > 0) {
-        await supabase
-          .from('directors')
-          .insert(createdDirectors.map(d => ({ ...d, company_id: createdCompany.id })));
+        if (createdDirectors.length > 0) {
+          const directorsToInsert = createdDirectors.map(d => ({
+            company_id: data.id,
+            din: d.din,
+            full_name: d.full_name,
+            designation: d.designation,
+            appointment_date: d.appointment_date,
+            din_status: d.din_status,
+            dsc_status: d.dsc_status,
+            kyc_status: d.kyc_status,
+            email: d.email || 'director@futuremca.in',
+            phone: d.phone || null
+          }));
+          await supabase.from('directors').insert(directorsToInsert);
+        }
       }
-    } catch {
-      // offline fallback — already in DYNAMIC_COMPANIES
+    } catch (e) {
+      console.warn('Notice while persisting to Supabase:', e);
     }
 
     return createdCompany;
@@ -270,9 +311,22 @@ export class CompanyService {
    * Add a director to an existing company.
    */
   static async addDirector(companyId: string, directorData: Partial<Director>): Promise<Director> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    let targetCompanyId = companyId;
+    if (!isUuid.test(companyId)) {
+      const comp = await this.getCompanyByCin(companyId);
+      if (comp && comp.id && isUuid.test(comp.id)) {
+        targetCompanyId = comp.id;
+      }
+    }
+
+    const assignedId = (directorData.id && isUuid.test(directorData.id))
+      ? directorData.id
+      : (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `dir_${Date.now()}`);
+
     const newDir: Director = {
-      id: `dir_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      company_id: companyId,
+      id: assignedId,
+      company_id: targetCompanyId,
       din: directorData.din || `09${Math.floor(100000 + Math.random() * 900000)}`,
       full_name: directorData.full_name || 'New Director',
       designation: directorData.designation || 'Director',
@@ -281,7 +335,7 @@ export class CompanyService {
       dsc_status: directorData.dsc_status || 'ACTIVE',
       dsc_expiry: directorData.dsc_expiry || '2028-12-31',
       kyc_status: directorData.kyc_status || 'COMPLIANT',
-      email: directorData.email || '',
+      email: directorData.email || 'director@futuremca.in',
       phone: directorData.phone || ''
     };
 
@@ -296,16 +350,38 @@ export class CompanyService {
       existing.push(newDir);
     }
     DYNAMIC_DIRECTORS.set(companyId, existing);
+    if (targetCompanyId !== companyId) {
+      DYNAMIC_DIRECTORS.set(targetCompanyId, existing);
+    }
 
     try {
-      const { data, error } = await supabase
-        .from('directors')
-        .insert(newDir)
-        .select()
-        .single();
+      if (isUuid.test(targetCompanyId)) {
+        const dbDir: any = {
+          company_id: targetCompanyId,
+          din: newDir.din,
+          full_name: newDir.full_name,
+          designation: newDir.designation,
+          appointment_date: newDir.appointment_date,
+          din_status: newDir.din_status,
+          dsc_status: newDir.dsc_status,
+          dsc_expiry: newDir.dsc_expiry,
+          kyc_status: newDir.kyc_status,
+          email: newDir.email || 'director@futuremca.in',
+          phone: newDir.phone || null
+        };
+        if (isUuid.test(assignedId)) {
+          dbDir.id = assignedId;
+        }
 
-      if (!error && data) {
-        return data as Director;
+        const { data, error } = await supabase
+          .from('directors')
+          .insert(dbDir)
+          .select()
+          .single();
+
+        if (!error && data) {
+          return data as Director;
+        }
       }
     } catch {
       // offline fallback
