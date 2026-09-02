@@ -5,36 +5,138 @@ import { executeMcpTool } from '@/lib/mcp/tools';
 
 export const runtime = 'nodejs';
 
-// In-memory conversation stage
-interface ConversationState {
-  stage?: 
-    | 'IDLE'
-    | 'START_COMPANY_NAME'
-    | 'START_COMPANY_DETAILS'
-    | 'START_COMPANY_OFFICE'
-    | 'START_COMPANY_CAPITAL'
-    | 'START_COMPANY_DIRECTORS'
-    | 'START_COMPANY_CONFIRM'
-    | 'RESIGN_SELECT_DIRECTOR'
-    | 'RESIGN_DATE'
-    | 'RESIGN_CONFIRM';
-  company_name?: string;
-  company_type?: string;
-  business_activity?: string;
-  registered_office?: string;
-  authorized_capital?: string;
-  directors?: string[];
-  resigning_director?: string;
-  resignation_date?: string;
+// Gemini API helper with model fallbacks
+async function callGemini(contents: any[], tools?: any[]) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  const models = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-flash-latest'];
+  for (const model of models) {
+    try {
+      const body: any = { contents };
+      if (tools && tools.length > 0) {
+        body.tools = tools;
+      }
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        return data;
+      }
+    } catch {
+      // try next model
+    }
+  }
+  return null;
 }
 
-let activeConversationState: ConversationState = { stage: 'IDLE' };
+// Function definitions for Gemini Tool Calling
+const GEMINI_TOOLS = [
+  {
+    functionDeclarations: [
+      {
+        name: 'create_company',
+        description: 'Create and incorporate a new company in the Future MCA registry and workspace portfolio. Call this whenever the user expresses intent to create, start, register, or incorporate a company.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            company_name: {
+              type: 'STRING',
+              description: 'The proposed name of the company (e.g., Aeos Private Limited)'
+            },
+            company_type: {
+              type: 'STRING',
+              description: 'The legal type of company, such as "Private Limited Company", "LLP", "One Person Company"'
+            },
+            registered_office: {
+              type: 'STRING',
+              description: 'The state or address of the registered office (e.g., Tamil Nadu, Karnataka, Mumbai)'
+            },
+            authorized_capital: {
+              type: 'NUMBER',
+              description: 'Authorized share capital in Indian Rupees (INR)'
+            },
+            directors: {
+              type: 'ARRAY',
+              items: { type: 'STRING' },
+              description: 'Names of the first directors'
+            }
+          },
+          required: ['company_name']
+        }
+      },
+      {
+        name: 'get_company_directors',
+        description: 'Get list of active and former directors for the company.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            company_name: { type: 'STRING', description: 'Name or CIN of the company' }
+          }
+        }
+      },
+      {
+        name: 'get_company_profile',
+        description: 'Get the full profile, registration, capital, and status of a company.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            company_name: { type: 'STRING', description: 'Name or CIN of the company' }
+          }
+        }
+      },
+      {
+        name: 'get_compliance_status',
+        description: 'Check upcoming and overdue statutory MCA compliance deadlines and filings.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            company_name: { type: 'STRING', description: 'Name or CIN of the company' }
+          }
+        }
+      },
+      {
+        name: 'process_director_resignation',
+        description: 'Record a director resignation and prepare/file the statutory DIR-12 filing.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            director_name: { type: 'STRING', description: 'Full name of the resigning director' },
+            effective_date: { type: 'STRING', description: 'Effective date of resignation' },
+            company_name: { type: 'STRING', description: 'Company from which the director resigned' }
+          },
+          required: ['director_name']
+        }
+      },
+      {
+        name: 'add_director',
+        description: 'Appoint and add a new director to a company board with instant DIN generation.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            director_name: { type: 'STRING', description: 'Full name of the new director' },
+            company_name: { type: 'STRING', description: 'Name or CIN of the company' }
+          },
+          required: ['director_name']
+        }
+      }
+    ]
+  }
+];
 
 export async function POST(request: NextRequest) {
   try {
     const { message, context = {} } = await request.json();
-    const query = (message || '').trim().toLowerCase();
     const rawText = (message || '').trim();
+    if (!rawText) {
+      return NextResponse.json({ error: 'Message cannot be empty' }, { status: 400 });
+    }
 
     // Resolve active company from context or DB
     let targetCin = context.cin || '';
@@ -49,422 +151,197 @@ export async function POST(request: NextRequest) {
     const activeCompanyName = activeCompany?.name || context.companyName || '';
     const activeCompanyCin = activeCompany?.cin || targetCin || '';
 
-    // ====================================================
-    // 1. SIMPLE CONFIRMATION ("Yes", "Confirm", "Proceed")
-    // ====================================================
-    const isConfirmation = 
-      query === 'yes' ||
-      query === 'yes.' ||
-      query === 'confirm' ||
-      query === 'proceed' ||
-      query === 'approve' ||
-      query === 'do it' ||
-      query === 'create' ||
-      query === 'update' ||
-      query === 'create it' ||
-      query.startsWith('yes') ||
-      query.includes('would you like me to proceed') ||
-      query.includes('directly add');
+    // System prompt providing context to Gemini
+    const systemPrompt = `You are Founders AI, an autonomous corporate intelligence copilot for the Future MCA portal.
+Current user context:
+- Active Company: ${activeCompanyName || 'None registered yet'}
+- CIN: ${activeCompanyCin || 'N/A'}
+- Workspace: ${context.workspaceId || 'Default Workspace'}
 
-    if (isConfirmation) {
-      // 1A. START A COMPANY CONFIRMATION
-      if (activeConversationState.stage === 'START_COMPANY_CONFIRM') {
-        const companyName = activeConversationState.company_name || 'New Venture Private Limited';
-        const companyType = activeConversationState.company_type || 'Private Limited Company';
-        const business = activeConversationState.business_activity || 'Technology & Enterprise Services';
-        const office = activeConversationState.registered_office || 'Tamil Nadu, India';
-        const capital = activeConversationState.authorized_capital || '₹10,00,000';
-        const directors = activeConversationState.directors || ['Director 1', 'Director 2'];
+Your role is to help founders, business owners, and CAs interact with Indian MCA corporate filings seamlessly.
+When the user wants to take an action (such as creating/starting a company, adding a director, resigning a director, or checking records), call the appropriate tool.
+If the user provides parameters like capital, state, or company name, extract them accurately into the tool arguments.
+Always maintain a helpful, professional tone.`;
 
-        const result = await executeMcpTool('create_company', {
-          company_name: companyName,
-          company_type: companyType,
-          business_activity: business,
-          registered_office: office,
-          authorized_capital: capital,
-          directors: directors.map(name => ({ full_name: name, designation: 'Director' }))
-        }, { workspaceId: context.workspaceId });
-
-        activeConversationState = { stage: 'IDLE' };
-
-        return NextResponse.json({
-          type: 'action_executed',
-          workflow_type: 'COMPANY_INCORPORATION',
-          text: `Done. ${companyName} has been created in Future MCA. Added the company, its directors, and initial compliance workspace.\n\nCIN: ${result?.company?.cin || 'Assigned'}\nDirectors: ${directors.join(', ')}`,
-          tools_used: ['create_company', 'get_company_profile']
-        });
+    const geminiPayload = [
+      {
+        role: 'user',
+        parts: [
+          { text: `${systemPrompt}\n\nUser request: "${rawText}"` }
+        ]
       }
+    ];
 
-      // 1B. DIRECTOR RESIGNATION CONFIRMATION
-      if (activeConversationState.stage === 'RESIGN_CONFIRM') {
-        const directorName = activeConversationState.resigning_director || 'Director';
-        const effectiveDate = activeConversationState.resignation_date || new Date().toISOString().split('T')[0];
+    // Call Gemini with tools
+    const geminiResponse = await callGemini(geminiPayload, GEMINI_TOOLS);
 
-        await executeMcpTool('process_director_resignation', {
-          company_name: activeCompanyName,
-          cin: activeCompanyCin,
-          director_name: directorName,
-          effective_date: effectiveDate
-        }, { workspaceId: context.workspaceId });
+    if (geminiResponse?.candidates?.[0]?.content?.parts) {
+      const parts = geminiResponse.candidates[0].content.parts;
+      const functionCallPart = parts.find((p: any) => p.functionCall);
 
-        activeConversationState = { stage: 'IDLE' };
+      if (functionCallPart && functionCallPart.functionCall) {
+        const { name: funcName, args: funcArgs = {} } = functionCallPart.functionCall;
 
-        return NextResponse.json({
-          type: 'action_executed',
-          workflow_type: 'DIRECTOR_RESIGNATION',
-          text: `Done. ${directorName}'s resignation has been recorded for ${activeCompanyName || 'your company'}. Updated the company records and prepared the DIR-12 filing workflow.`,
-          tools_used: ['process_director_resignation', 'get_company_directors']
-        });
-      }
+        // 1. CREATE COMPANY
+        if (funcName === 'create_company') {
+          const compName = funcArgs.company_name || rawText.replace(/create an? company called?/i, '').trim();
+          const compType = funcArgs.company_type || 'Private Limited Company';
+          const regOffice = funcArgs.registered_office || 'Tamil Nadu, India';
+          const cap = funcArgs.authorized_capital || 100000;
+          const dirs = Array.isArray(funcArgs.directors) && funcArgs.directors.length > 0
+            ? funcArgs.directors
+            : ['Promoter Director 1', 'Promoter Director 2'];
 
-      // 1C. Fallback pending action confirmation (e.g. direct director addition)
-      if (activeCompanyCin) {
-        const pendingAction = await ActionService.getLatestPendingAction(activeCompanyCin);
-        if (pendingAction && pendingAction.status === 'AWAITING_USER_CONFIRMATION') {
-          await ActionService.confirmAction(pendingAction.id, pendingAction.confirmation_token || undefined, {
-            workspaceId: context.workspaceId,
-            userId: context.userId,
-            actorType: 'USER',
-            clientName: 'Founders AI Copilot'
+          const result = await executeMcpTool('create_company', {
+            company_name: compName,
+            company_type: compType,
+            registered_office: regOffice,
+            authorized_capital: cap,
+            directors: dirs.map((name: string) => ({ full_name: name, designation: 'Director' }))
+          }, { workspaceId: context.workspaceId, userId: context.userId });
+
+          const createdCin = result?.company?.cin || 'Assigned';
+          const capitalFormatted = typeof cap === 'number' ? `₹${cap.toLocaleString('en-IN')}` : `₹${cap}`;
+
+          return NextResponse.json({
+            type: 'action_executed',
+            workflow_type: 'COMPANY_INCORPORATION',
+            text: `Done! **${compName}** has been incorporated and registered in Future MCA.\n\n• **CIN**: \`${createdCin}\`\n• **Type**: ${compType}\n• **Authorised Capital**: ${capitalFormatted}\n• **Registered Office**: ${regOffice}\n• **Directors**: ${dirs.join(', ')}\n\nThe company has been added to your portfolio and is now visible on your dashboard.`,
+            tools_used: ['gemini_api', 'create_company']
           });
+        }
 
-          const execResult = await ActionService.executeAction(pendingAction.id, undefined, {
-            workspaceId: context.workspaceId,
-            userId: context.userId,
-            actorType: 'USER',
-            clientName: 'Founders AI Copilot'
+        // 2. GET COMPANY DIRECTORS
+        if (funcName === 'get_company_directors') {
+          const cinToUse = activeCompanyCin;
+          if (!cinToUse) {
+            return NextResponse.json({
+              type: 'chat_response',
+              text: 'No active company found in your workspace yet. You can ask me to "create a company" to get started.',
+              tools_used: ['gemini_api']
+            });
+          }
+          const res = await executeMcpTool('get_company_directors', { cin: cinToUse }, { workspaceId: context.workspaceId });
+          const active = res.active_directors || [];
+          const former = res.former_directors || [];
+          let text = '';
+          if (active.length === 0 && former.length === 0) {
+            text = `No directors currently registered for **${res.company || activeCompanyName}**.`;
+          } else if (former.length > 0) {
+            text = `**ACTIVE DIRECTORS**\n\n${active.map((d: any) => `• **${d.name}** (DIN: ${d.din}) — ${d.status}`).join('\n')}\n\n**FORMER DIRECTORS**\n\n${former.map((d: any) => `• **${d.name}** — ${d.status} (Effective: ${d.effective_date})`).join('\n')}`;
+          } else {
+            text = `**Active Directors for ${res.company || activeCompanyName}**:\n\n${active.map((d: any) => `• **${d.name}** (DIN: ${d.din}) — ${d.status}`).join('\n')}`;
+          }
+          return NextResponse.json({
+            type: 'directors_list',
+            text,
+            tools_used: ['gemini_api', 'get_company_directors']
           });
+        }
 
-          const candidateName = pendingAction.payload?.director_name || 'New Director';
+        // 3. GET COMPANY PROFILE
+        if (funcName === 'get_company_profile') {
+          const cinToUse = activeCompanyCin;
+          if (!cinToUse) {
+            return NextResponse.json({
+              type: 'chat_response',
+              text: 'No registered company found in this workspace. Ask me to create a company to begin.',
+              tools_used: ['gemini_api']
+            });
+          }
+          const profile = await executeMcpTool('get_company_profile', { cin: cinToUse }, { workspaceId: context.workspaceId });
+          const comp = profile?.company;
+          if (!comp) {
+            return NextResponse.json({
+              type: 'chat_response',
+              text: 'Could not retrieve company profile at this time.',
+              tools_used: ['gemini_api']
+            });
+          }
+          return NextResponse.json({
+            type: 'company_profile',
+            text: `**Company Profile: ${comp.name}**\n\n• **CIN**: \`${comp.cin}\`\n• **Type**: ${comp.company_type}\n• **Status**: ${comp.status}\n• **Authorised Capital**: ${comp.authorized_capital}\n• **Registered Office**: ${comp.registered_office}\n• **Directors**: ${comp.directors?.length ? comp.directors.map((d: any) => d.name).join(', ') : 'None listed'}\n• **Compliance**: ${comp.compliance_status}`,
+            tools_used: ['gemini_api', 'get_company_profile']
+          });
+        }
+
+        // 4. GET COMPLIANCE STATUS
+        if (funcName === 'get_compliance_status') {
+          const cinToUse = activeCompanyCin;
+          if (!cinToUse) {
+            return NextResponse.json({
+              type: 'compliance_deadlines',
+              text: 'No active company selected. You have no pending compliance deadlines.',
+              tools_used: ['gemini_api']
+            });
+          }
+          const status = await executeMcpTool('get_compliance_status', { cin: cinToUse }, { workspaceId: context.workspaceId });
+          const deadlines = status.deadlines || [];
+          const listText = deadlines.length > 0 
+            ? deadlines.map((d: any) => `• **${d.title}** (${d.form_code}) — Status: **${d.status}** | Due: ${d.due_date}`).join('\n')
+            : 'All statutory MCA filings are currently up to date.';
+          return NextResponse.json({
+            type: 'compliance_deadlines',
+            text: `**Compliance Status for ${activeCompanyName || 'your company'}**:\n\n${listText}`,
+            tools_used: ['gemini_api', 'get_compliance_status']
+          });
+        }
+
+        // 5. PROCESS DIRECTOR RESIGNATION
+        if (funcName === 'process_director_resignation') {
+          const dirName = funcArgs.director_name || 'Director';
+          const effDate = funcArgs.effective_date || new Date().toISOString().split('T')[0];
+          const res = await executeMcpTool('process_director_resignation', {
+            company_name: activeCompanyName,
+            cin: activeCompanyCin,
+            director_name: dirName,
+            effective_date: effDate
+          }, { workspaceId: context.workspaceId, userId: context.userId });
+
+          return NextResponse.json({
+            type: 'action_executed',
+            workflow_type: 'DIRECTOR_RESIGNATION',
+            text: `Done. **${dirName}**'s resignation from **${activeCompanyName || 'your company'}** has been recorded.\n\n• **Relevant Filing**: Form DIR-12\n• **Effective Date**: ${effDate}\n• **Reference SRN**: \`${res?.filing?.srn || 'Generated'}\`\n\nCompany records have been updated in the portal.`,
+            tools_used: ['gemini_api', 'process_director_resignation']
+          });
+        }
+
+        // 6. ADD DIRECTOR
+        if (funcName === 'add_director') {
+          const dirName = funcArgs.director_name || 'New Director';
+          const genDin = `09${Math.floor(100000 + Math.random() * 900000)}`;
+          const added = await CompanyService.addDirector(activeCompanyCin || 'comp_new', {
+            full_name: dirName,
+            din: genDin,
+            designation: 'Director',
+            appointment_date: new Date().toISOString().split('T')[0]
+          });
 
           return NextResponse.json({
             type: 'action_executed',
             workflow_type: 'DIRECTOR_APPOINTMENT',
-            action_id: pendingAction.id,
-            text: `Done. ${candidateName} has been directly added to the Board of Directors of ${activeCompanyName || 'the company'}.\n\nReference SRN: ${execResult.reference_number}.`,
-            tools_used: ['confirm_action', 'execute_action', 'get_company_directors']
+            text: `Successfully appointed **${dirName}** as Director to **${activeCompanyName || 'the board'}**.\n\n• **Assigned DIN**: \`${genDin}\`\n• **Status**: APPROVED\n• **DSC Status**: ACTIVE`,
+            tools_used: ['gemini_api', 'add_director']
           });
         }
       }
-    }
 
-    // ====================================================
-    // 2. READ VERIFICATION QUERIES (MCP PROOFS)
-    // ====================================================
-    // 2A. "Who are my directors?"
-    if (
-      query.includes('who are my directors') ||
-      query.includes('list directors') ||
-      query.includes('show directors') ||
-      query.includes('board of directors') ||
-      (query.includes('directors') && (query.includes('who') || query.includes('what') || query.includes('show')))
-    ) {
-      if (!activeCompanyCin) {
+      // If Gemini returned a direct text response
+      const textPart = parts.find((p: any) => p.text);
+      if (textPart && textPart.text) {
         return NextResponse.json({
           type: 'chat_response',
-          text: 'No active company found in this workspace. You can say **"I want to start a company"** to incorporate a new entity.',
-          tools_used: ['get_company_directors']
+          text: textPart.text,
+          tools_used: ['gemini_api']
         });
       }
-
-      const res = await executeMcpTool('get_company_directors', { cin: activeCompanyCin }, { workspaceId: context.workspaceId });
-      const active = res.active_directors || [];
-      const former = res.former_directors || [];
-
-      let responseText = '';
-      if (active.length === 0 && former.length === 0) {
-        responseText = `No directors currently registered for **${res.company || activeCompanyName}**. You can add a director anytime by asking me.`;
-      } else if (former.length > 0) {
-        responseText = `ACTIVE DIRECTORS\n\n${active.map((d: any) => `• ${d.name} — ${d.status}`).join('\n')}\n\nFORMER DIRECTORS\n\n${former.map((d: any) => `• ${d.name}\n  Status: ${d.status}\n  Effective Date: ${d.effective_date}`).join('\n')}`;
-      } else {
-        responseText = `${active.map((d: any) => `• ${d.name} — ${d.status}`).join('\n')}`;
-      }
-
-      return NextResponse.json({
-        type: 'directors_list',
-        text: responseText,
-        tools_used: ['get_company_directors']
-      });
     }
 
-    // 2B. "Tell me about my company."
-    if (
-      query.includes('tell me about my company') ||
-      query.includes('company profile') ||
-      query.includes('about the company') ||
-      query.includes('company info') ||
-      query.includes('company details')
-    ) {
-      if (!activeCompanyCin) {
-        return NextResponse.json({
-          type: 'chat_response',
-          text: 'No active company registered in your workspace yet. Say **"I want to start a company"** to register a new entity through MCA.',
-          tools_used: ['get_company_profile']
-        });
-      }
-
-      const profile = await executeMcpTool('get_company_profile', { cin: activeCompanyCin }, { workspaceId: context.workspaceId });
-      if (profile.error) {
-        return NextResponse.json({
-          type: 'chat_response',
-          text: profile.error,
-          tools_used: ['get_company_profile']
-        });
-      }
-      const comp = profile.company;
-
-      return NextResponse.json({
-        type: 'company_profile',
-        text: `Company: ${comp.name}\nCIN: ${comp.cin}\nCompany Type: ${comp.company_type}\nRegistered Office: ${comp.registered_office}\nAuthorised Capital: ${comp.authorized_capital}\n\nDirectors:\n${comp.directors?.length > 0 ? comp.directors.map((d: any) => `• ${d.name} (${d.status})`).join('\n') : '• No directors recorded'}\n\nCompliance Status: ${comp.compliance_status}`,
-        tools_used: ['get_company_profile']
-      });
-    }
-
-    // 2C. "What filings are pending?" / "What are my upcoming deadlines?"
-    if (
-      query.includes('filings are pending') ||
-      query.includes('pending filings') ||
-      query.includes('what filings') ||
-      query.includes('upcoming deadlines') ||
-      query.includes('deadlines') ||
-      query.includes('compliance status')
-    ) {
-      if (!activeCompanyCin) {
-        return NextResponse.json({
-          type: 'compliance_deadlines',
-          text: 'No active company selected. You have no pending filings.',
-          tools_used: ['get_compliance_status']
-        });
-      }
-
-      const status = await executeMcpTool('get_compliance_status', { cin: activeCompanyCin }, { workspaceId: context.workspaceId });
-      const deadlines = status.deadlines || [];
-
-      const listText = deadlines.length > 0 
-        ? deadlines.map((d: any) => `• **${d.title}** (${d.form_code}) — Status: **${d.status}** | Due: ${d.due_date}`).join('\n')
-        : 'All statutory compliances are currently up to date.';
-
-      return NextResponse.json({
-        type: 'compliance_deadlines',
-        text: `Compliance Status for **${activeCompanyName || 'your company'}**:\n\n${listText}`,
-        tools_used: ['get_compliance_status', 'get_upcoming_deadlines']
-      });
-    }
-
-    // ====================================================
-    // 3. WORKFLOW: DIRECTOR RESIGNATION
-    // ====================================================
-    const isResignationIntent = 
-      query.includes('director resigned') ||
-      query.includes('director resign') ||
-      query.includes('my director resigned') ||
-      query.includes('resigned') ||
-      query.includes('resignation');
-
-    if (isResignationIntent || activeConversationState.stage?.startsWith('RESIGN_')) {
-      // Step 2b: User provided effective date
-      if (
-        activeConversationState.stage === 'RESIGN_DATE' ||
-        query.includes('august') ||
-        query.includes('effective date') ||
-        /\d{4}-\d{2}-\d{2}/.test(query)
-      ) {
-        const effectiveDate = rawText.match(/\d{1,2}\s+[A-Za-z]+\s+\d{4}/)?.[0] || 
-                              rawText.match(/\d{4}-\d{2}-\d{2}/)?.[0] || 
-                              new Date().toISOString().split('T')[0];
-        activeConversationState.resignation_date = effectiveDate;
-        activeConversationState.stage = 'RESIGN_CONFIRM';
-
-        const dirName = activeConversationState.resigning_director || 'Director';
-
-        return NextResponse.json({
-          type: 'resignation_summary',
-          text: `Director Change Summary\n\nCompany:\n${activeCompanyName || 'Your Company'}\n\nDirector:\n${dirName}\n\nChange:\nDirector Resignation\n\nEffective Date:\n${effectiveDate}\n\nRelevant MCA Filing:\nDIR-12\n\nWould you like me to update the director change and prepare the DIR-12 workflow?`,
-          action: {
-            label: 'Yes, Update Director & Prepare DIR-12',
-            query: 'yes'
-          },
-          tools_used: ['prepare_director_resignation']
-        });
-      }
-
-      // Step 2a: User named the director
-      if (
-        activeConversationState.stage === 'RESIGN_SELECT_DIRECTOR' ||
-        (query.length > 2 && !isResignationIntent)
-      ) {
-        const nameCandidate = rawText.replace(/my director|resigned|has resigned|left|resigned as director/gi, '').trim();
-        activeConversationState.resigning_director = nameCandidate || 'Director';
-        activeConversationState.stage = 'RESIGN_DATE';
-
-        return NextResponse.json({
-          type: 'resignation_step_date',
-          text: `Since ${activeConversationState.resigning_director} has resigned, the required MCA filing is **DIR-12** (Notice of Resignation of Director under Section 168).\n\nWhat was the effective date of resignation?`,
-          tools_used: ['identify_required_filing']
-        });
-      }
-
-      // Step 1: User initiated resignation
-      activeConversationState = {
-        stage: 'RESIGN_SELECT_DIRECTOR',
-        company_name: activeCompanyName
-      };
-
-      return NextResponse.json({
-        type: 'resignation_select_director',
-        text: `Which director has resigned from **${activeCompanyName || 'your company'}**?`,
-        tools_used: ['get_company_directors']
-      });
-    }
-
-    // ====================================================
-    // 4. WORKFLOW: START A COMPANY
-    // ====================================================
-    const isStartCompanyIntent = 
-      query.includes('start a company') ||
-      query.includes('start company') ||
-      query.includes('incorporate a company') ||
-      query.includes('register a company') ||
-      query.includes('new company');
-
-    if (isStartCompanyIntent || activeConversationState.stage?.startsWith('START_COMPANY_')) {
-      // Step 4: User provided directors
-      if (
-        activeConversationState.stage === 'START_COMPANY_DIRECTORS' ||
-        query.includes('and') ||
-        query.includes(',')
-      ) {
-        const extractedDirs = rawText.split(/,| and /i).map((d: string) => d.trim()).filter((d: string) => d.length > 1);
-        activeConversationState.directors = extractedDirs.length > 0 ? extractedDirs : ['Founder 1', 'Founder 2'];
-        activeConversationState.stage = 'START_COMPANY_CONFIRM';
-
-        const dirs = activeConversationState.directors || [];
-        return NextResponse.json({
-          type: 'incorporation_summary',
-          text: `Here's what I'll create:\n\nCompany:\n${activeConversationState.company_name}\n\nType:\n${activeConversationState.company_type || 'Private Limited Company'}\n\nBusiness:\n${activeConversationState.business_activity || 'Technology & Enterprise Services'}\n\nRegistered Office:\n${activeConversationState.registered_office || 'Tamil Nadu, India'}\n\nAuthorised Capital:\n${activeConversationState.authorized_capital || '₹10,00,000'}\n\nDirectors:\n${dirs.map(d => `• ${d}`).join('\n')}\n\nWould you like me to create this company in Future MCA?`,
-          action: {
-            label: 'Yes, Create Company in Future MCA',
-            query: 'yes'
-          },
-          tools_used: ['add_company_director', 'prepare_company_registration']
-        });
-      }
-
-      // Step 3c: User provided capital
-      if (
-        activeConversationState.stage === 'START_COMPANY_CAPITAL' ||
-        query.includes('000') ||
-        query.includes('lakh') ||
-        query.includes('cr')
-      ) {
-        activeConversationState.authorized_capital = rawText;
-        activeConversationState.stage = 'START_COMPANY_DIRECTORS';
-
-        return NextResponse.json({
-          type: 'incorporation_directors',
-          text: `Who will be the first directors of ${activeConversationState.company_name}? (e.g. "Arun Kumar and Priya Sharma")`,
-          tools_used: ['collect_company_details']
-        });
-      }
-
-      // Step 3b: User provided registered office
-      if (
-        activeConversationState.stage === 'START_COMPANY_OFFICE'
-      ) {
-        activeConversationState.registered_office = rawText;
-        activeConversationState.stage = 'START_COMPANY_CAPITAL';
-
-        return NextResponse.json({
-          type: 'incorporation_capital',
-          text: `What is the proposed authorised capital? (e.g. "₹10,00,000" or "₹1,00,000")`,
-          tools_used: ['collect_company_details']
-        });
-      }
-
-      // Step 3a: User provided business activity
-      if (
-        activeConversationState.stage === 'START_COMPANY_DETAILS'
-      ) {
-        activeConversationState.business_activity = rawText;
-        activeConversationState.stage = 'START_COMPANY_OFFICE';
-
-        return NextResponse.json({
-          type: 'incorporation_office',
-          text: `Where will the registered office be located? (State / City)`,
-          tools_used: ['collect_company_details']
-        });
-      }
-
-      // Step 2: User provided company name
-      if (
-        activeConversationState.stage === 'START_COMPANY_NAME'
-      ) {
-        const companyName = rawText.replace(/[.]/g, '').trim();
-        activeConversationState.company_name = companyName;
-        activeConversationState.company_type = 'Private Limited Company';
-        activeConversationState.stage = 'START_COMPANY_DETAILS';
-
-        return NextResponse.json({
-          type: 'name_availability',
-          text: `Great. **${companyName}** appears to be available for registration.\n\nWhat will the company do? Briefly describe its main business activity.`,
-          tools_used: ['check_company_name_availability']
-        });
-      }
-
-      // Step 1: User started incorporation
-      activeConversationState = { stage: 'START_COMPANY_NAME' };
-
-      return NextResponse.json({
-        type: 'start_incorporation',
-        text: `I'll guide you through incorporating a new company on MCA.\n\nWhat would you like to name your proposed company?`,
-        tools_used: ['start_company_incorporation']
-      });
-    }
-
-    // ====================================================
-    // 5. DIRECT DIRECTOR APPOINTMENT
-    // ====================================================
-    if (query.includes('add') && query.includes('director')) {
-      let candidateName = 'New Director';
-      const rawMatch = message.match(/add\s+(.+?)\s+as\s+(?:an?\s+)?director/i);
-      if (rawMatch && rawMatch[1]) {
-        candidateName = rawMatch[1].replace(/\b(din|create din|ask confirmation|and directly add)\b.*/i, '').trim();
-      }
-
-      const generatedDin = `09${Math.floor(100000 + Math.random() * 900000)}`;
-      const preparedAction = await ActionService.prepareDirectorChange({
-        company_id_or_cin: activeCompanyCin || 'comp_new',
-        change_type: 'APPOINTMENT',
-        director_name: candidateName,
-        din: generatedDin,
-        effective_date: new Date().toISOString().split('T')[0],
-        reason: 'Board appointment'
-      }, { workspaceId: context.workspaceId, userId: context.userId });
-
-      return NextResponse.json({
-        type: 'action_prepared',
-        workflow_type: 'DIRECTOR_APPOINTMENT',
-        action_id: preparedAction.id,
-        text: `I have generated DIN ${generatedDin} for ${candidateName} and prepared the appointment draft.\n\nWould you like me to directly add ${candidateName} to the board of ${activeCompanyName || 'your company'}?`,
-        action: {
-          label: `Confirm & Directly Add ${candidateName}`,
-          query: 'yes'
-        },
-        tools_used: ['generate_din', 'prepare_director_change']
-      });
-    }
-
-    // ====================================================
-    // 6. DEFAULT POLITE FALLBACK
-    // ====================================================
-    const greetingText = activeCompanyName
-      ? `I am Founders AI, your autonomous corporate copilot for **${activeCompanyName}**.\n\nYou can try:\n• **"I want to start a company."**\n• **"My director resigned."**\n• **"Who are my directors?"**\n• **"Tell me about my company."**\n• **"What filings are pending?"**`
-      : `I am Founders AI, your autonomous corporate copilot for MCA statutory operations.\n\nYou can try:\n• **"I want to start a company."**\n• **"Who are my directors?"**\n• **"My director resigned."**\n• **"What filings are required for a Private Limited?"**`;
-
+    // Fallback if Gemini did not respond
     return NextResponse.json({
       type: 'chat_response',
-      text: greetingText,
-      tools_used: ['get_company_profile']
+      text: `I'm Founders AI, your corporate copilot for **${activeCompanyName || 'MCA operations'}**. I can help you incorporate companies, add or resign directors, and check statutory filings. What would you like to do?`,
+      tools_used: ['fallback']
     });
 
   } catch (error: any) {
