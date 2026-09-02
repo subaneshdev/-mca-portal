@@ -1,9 +1,6 @@
 -- =========================================================================
 -- FUTURE MCA: SAFE USER & DATABASE PURGE SCRIPT
 -- =========================================================================
--- This script safely checks for table existence before deleting data,
--- wiping all registered users and test entities without throwing errors.
-
 DO $$ 
 DECLARE
   r RECORD;
@@ -11,7 +8,7 @@ BEGIN
   -- Disable foreign key constraints temporarily
   SET session_replication_role = 'replica';
 
-  -- Safely truncate/delete from public tables if they exist
+  -- Safely delete from all existing public tables
   FOR r IN (
     SELECT table_name 
     FROM information_schema.tables 
@@ -43,9 +40,9 @@ BEGIN
   DELETE FROM auth.audit_log_entries;
   DELETE FROM auth.users;
 
-  -- Restore foreign key checks
-  SET session_replication_role = 'DEFAULT';
+  -- Restore foreign key checks to default 'origin'
+  SET session_replication_role = 'origin';
 END $$;
 
--- Verify all users are purged
+-- Verify all users are purged (returns 0)
 SELECT count(*) AS remaining_auth_users FROM auth.users;
