@@ -1,19 +1,62 @@
 -- =========================================================================
--- FUTURE MCA: REBUILD SEED FOR TWO CORE WORKFLOWS (AEOS LABS + MCP ACTIONS)
+-- FUTURE MCA: SEED DEMO WORKFLOWS (TYPE COMPATIBLE)
 -- =========================================================================
 
--- 1. Create Workspaces Table if not exists
+-- 1. USERS & PROFILES TABLE
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  full_name TEXT,
+  persona TEXT DEFAULT 'founder',
+  phone TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, persona)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', 'Varun Maya'),
+    COALESCE(NEW.raw_user_meta_data->>'persona', 'founder')
+  )
+  ON CONFLICT (id) DO UPDATE
+  SET email = EXCLUDED.email,
+      full_name = EXCLUDED.full_name;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT OR UPDATE ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 2. WORKSPACES TABLE
 CREATE TABLE IF NOT EXISTS public.workspaces (
-  id TEXT PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   type TEXT DEFAULT 'founder',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Create Companies Table if not exists
+-- 3. WORKSPACE MEMBERS TABLE
+CREATE TABLE IF NOT EXISTS public.workspace_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id UUID REFERENCES public.workspaces(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  role TEXT DEFAULT 'owner',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(workspace_id, user_id)
+);
+
+-- 4. COMPANIES TABLE
 CREATE TABLE IF NOT EXISTS public.companies (
   id TEXT PRIMARY KEY,
-  workspace_id TEXT REFERENCES public.workspaces(id) ON DELETE CASCADE,
+  workspace_id UUID,
   cin TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
   legal_type TEXT NOT NULL,
@@ -29,7 +72,7 @@ CREATE TABLE IF NOT EXISTS public.companies (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Create Directors Table if not exists
+-- 5. DIRECTORS TABLE
 CREATE TABLE IF NOT EXISTS public.directors (
   id TEXT PRIMARY KEY,
   company_id TEXT REFERENCES public.companies(id) ON DELETE CASCADE,
@@ -48,7 +91,7 @@ CREATE TABLE IF NOT EXISTS public.directors (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Create Compliance Deadlines Table if not exists
+-- 6. COMPLIANCE DEADLINES TABLE
 CREATE TABLE IF NOT EXISTS public.compliance_deadlines (
   id TEXT PRIMARY KEY,
   company_id TEXT REFERENCES public.companies(id) ON DELETE CASCADE,
@@ -63,7 +106,7 @@ CREATE TABLE IF NOT EXISTS public.compliance_deadlines (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. Create Applications Table if not exists
+-- 7. APPLICATIONS TABLE
 CREATE TABLE IF NOT EXISTS public.applications (
   id TEXT PRIMARY KEY,
   company_id TEXT REFERENCES public.companies(id) ON DELETE CASCADE,
@@ -78,7 +121,6 @@ CREATE TABLE IF NOT EXISTS public.applications (
   remarks TEXT
 );
 
--- 6. Create Application Events Table if not exists
 CREATE TABLE IF NOT EXISTS public.application_events (
   id TEXT PRIMARY KEY,
   application_id TEXT REFERENCES public.applications(id) ON DELETE CASCADE,
@@ -89,7 +131,7 @@ CREATE TABLE IF NOT EXISTS public.application_events (
   sort_order INTEGER NOT NULL
 );
 
--- 7. Create MCP Actions and Audit Logs Table
+-- 8. MCP ACTIONS & AUDIT LOGS TABLE
 CREATE TABLE IF NOT EXISTS public.mcp_actions (
   id TEXT PRIMARY KEY,
   workspace_id TEXT,
@@ -127,7 +169,7 @@ CREATE TABLE IF NOT EXISTS public.mcp_action_audit_logs (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 8. Create Knowledge Base Table
+-- 9. KNOWLEDGE DOCUMENTS TABLE
 CREATE TABLE IF NOT EXISTS public.knowledge_documents (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
@@ -142,257 +184,168 @@ CREATE TABLE IF NOT EXISTS public.knowledge_documents (
 );
 
 -- =========================================================================
--- SEED DATA
+-- SEED PRIMARY AEOS LABS & PORTFOLIO DATA
 -- =========================================================================
+DO $$
+DECLARE
+  v_ws_id UUID;
+BEGIN
+  -- Insert or fetch workspace UUID
+  INSERT INTO public.workspaces (name, type)
+  VALUES ('Aeos Labs Workspace', 'founder')
+  RETURNING id INTO v_ws_id;
 
--- Clear previous test data cleanly
-DELETE FROM public.mcp_action_audit_logs;
-DELETE FROM public.mcp_actions;
-DELETE FROM public.application_events;
-DELETE FROM public.applications;
-DELETE FROM public.compliance_deadlines;
-DELETE FROM public.directors;
-DELETE FROM public.companies;
-DELETE FROM public.workspaces;
-DELETE FROM public.knowledge_documents;
+  -- Insert Companies
+  INSERT INTO public.companies (
+    id, workspace_id, cin, name, legal_type, status,
+    paid_up_capital, authorized_capital, incorporation_date,
+    roc_jurisdiction, registered_office, email, pan, gst
+  ) VALUES
+  (
+    'comp_aeos_001',
+    v_ws_id,
+    'U62099TN2026PTCDEMO001',
+    'Aeos Labs Private Limited',
+    'Private Limited Company',
+    'ACTIVE',
+    100000,
+    1000000,
+    '2026-01-15',
+    'ROC Chennai',
+    'Level 4, IITM Research Park, Kanagam Road, Taramani, Chennai, Tamil Nadu – 600113, India',
+    'contact@aeoslabs.in',
+    'AADCA1234F',
+    '33AADCA1234F1Z5'
+  ),
+  (
+    'comp_novara_002',
+    v_ws_id,
+    'U72900KA2024PTCDEMO002',
+    'Novara Technologies Private Limited',
+    'Private Limited Company',
+    'ACTIVE',
+    500000,
+    2500000,
+    '2024-03-10',
+    'ROC Bangalore',
+    'Outer Ring Road, Bellandur, Bangalore, Karnataka - 560103',
+    'legal@novaratech.io',
+    'AABCN5566K',
+    '29AABCN5566K1Z8'
+  ),
+  (
+    'comp_terraworks_003',
+    v_ws_id,
+    'U74999MH2023PTCDEMO003',
+    'TerraWorks Private Limited',
+    'Private Limited Company',
+    'ACTIVE',
+    200000,
+    1000000,
+    '2023-08-19',
+    'ROC Mumbai',
+    'Bandra Kurla Complex, Bandra East, Mumbai, Maharashtra - 400051',
+    'compliance@terraworks.in',
+    'AAACT8899P',
+    '27AAACT8899P1ZQ'
+  ),
+  (
+    'comp_pulsegrid_004',
+    v_ws_id,
+    'U35999DL2025PTCDEMO004',
+    'PulseGrid Innovations Private Limited',
+    'Private Limited Company',
+    'ACTIVE',
+    1000000,
+    5000000,
+    '2025-05-12',
+    'ROC Delhi',
+    'Aerocity Business Hub, New Delhi, Delhi - 110037',
+    'admin@pulsegrid.io',
+    'AABCP7788R',
+    '07AABCP7788R1Z1'
+  )
+  ON CONFLICT (id) DO NOTHING;
 
--- 1. Insert Workspace
-INSERT INTO public.workspaces (id, name, type) VALUES
-('ws_aeos_labs_001', 'Aeos Labs Workspace', 'founder');
+  -- Insert Directors
+  INSERT INTO public.directors (
+    id, company_id, din, full_name, designation,
+    appointment_date, din_status, dsc_status, dsc_expiry,
+    kyc_status, email, phone, status
+  ) VALUES
+  (
+    'dir_varun_001',
+    'comp_aeos_001',
+    '08945120',
+    'Varun Maya',
+    'Managing Director',
+    '2026-01-15',
+    'APPROVED',
+    'ACTIVE',
+    '2028-11-30',
+    'COMPLIANT',
+    'varun@aeoslabs.in',
+    '+91 98401 23456',
+    'ACTIVE'
+  ),
+  (
+    'dir_rahul_002',
+    'comp_aeos_001',
+    '09124589',
+    'Rahul Menon',
+    'Director',
+    '2026-01-15',
+    'APPROVED',
+    'ACTIVE',
+    '2026-09-15',
+    'COMPLIANT',
+    'rahul@aeoslabs.in',
+    '+91 98402 34567',
+    'RESIGNATION_IN_PROGRESS'
+  )
+  ON CONFLICT (id) DO NOTHING;
 
--- 2. Insert Companies
-INSERT INTO public.companies (
-  id, workspace_id, cin, name, legal_type, status,
-  paid_up_capital, authorized_capital, incorporation_date,
-  roc_jurisdiction, registered_office, email, pan, gst
-) VALUES
-(
-  'comp_aeos_001',
-  'ws_aeos_labs_001',
-  'U62099TN2026PTCDEMO001',
-  'Aeos Labs Private Limited',
-  'Private Limited Company',
-  'ACTIVE',
-  100000,
-  1000000,
-  '2026-01-15',
-  'ROC Chennai',
-  'Level 4, IITM Research Park, Kanagam Road, Taramani, Chennai, Tamil Nadu – 600113, India',
-  'contact@aeoslabs.in',
-  'AADCA1234F',
-  '33AADCA1234F1Z5'
-),
-(
-  'comp_novara_002',
-  'ws_aeos_labs_001',
-  'U72900KA2024PTCDEMO002',
-  'Novara Technologies Private Limited',
-  'Private Limited Company',
-  'ACTIVE',
-  500000,
-  2500000,
-  '2024-03-10',
-  'ROC Bangalore',
-  'Outer Ring Road, Bellandur, Bangalore, Karnataka - 560103',
-  'legal@novaratech.io',
-  'AABCN5566K',
-  '29AABCN5566K1Z8'
-),
-(
-  'comp_terraworks_003',
-  'ws_aeos_labs_001',
-  'U74999MH2023PTCDEMO003',
-  'TerraWorks Private Limited',
-  'Private Limited Company',
-  'ACTIVE',
-  200000,
-  1000000,
-  '2023-08-19',
-  'ROC Mumbai',
-  'Bandra Kurla Complex, Bandra East, Mumbai, Maharashtra - 400051',
-  'compliance@terraworks.in',
-  'AAACT8899P',
-  '27AAACT8899P1ZQ'
-),
-(
-  'comp_pulsegrid_004',
-  'ws_aeos_labs_001',
-  'U35999DL2025PTCDEMO004',
-  'PulseGrid Innovations Private Limited',
-  'Private Limited Company',
-  'ACTIVE',
-  1000000,
-  5000000,
-  '2025-05-12',
-  'ROC Delhi',
-  'Aerocity Business Hub, New Delhi, Delhi - 110037',
-  'admin@pulsegrid.io',
-  'AABCP7788R',
-  '07AABCP7788R1Z1'
-);
+  -- Insert Compliance Deadlines
+  INSERT INTO public.compliance_deadlines (
+    id, company_id, title, form_code, section,
+    due_date, urgency, penalty_per_day, description, status
+  ) VALUES
+  (
+    'dl_dir12_001',
+    'comp_aeos_001',
+    'Director Cessation Filing (Rahul Menon)',
+    'DIR-12',
+    'Section 168, Companies Act 2013',
+    '2026-09-24',
+    'critical',
+    100,
+    'Statutory 30-day window following resignation of Director Rahul Menon on 25 Aug 2026. Action in progress.',
+    'IN_PROGRESS'
+  ),
+  (
+    'dl_aoc4_002',
+    'comp_aeos_001',
+    'Annual Financial Statements Filing',
+    'AOC-4',
+    'Section 137, Companies Act 2013',
+    '2026-10-30',
+    'upcoming',
+    100,
+    'Filing of balance sheet and profit & loss statement.',
+    'PENDING'
+  ),
+  (
+    'dl_mgt7_003',
+    'comp_aeos_001',
+    'Annual Return of Company',
+    'MGT-7A',
+    'Section 92, Companies Act 2013',
+    '2026-11-29',
+    'upcoming',
+    100,
+    'Annual return filing for small company / startup.',
+    'PENDING'
+  )
+  ON CONFLICT (id) DO NOTHING;
 
--- 3. Insert Directors for Aeos Labs
-INSERT INTO public.directors (
-  id, company_id, din, full_name, designation,
-  appointment_date, din_status, dsc_status, dsc_expiry,
-  kyc_status, email, phone, status
-) VALUES
-(
-  'dir_varun_001',
-  'comp_aeos_001',
-  '08945120',
-  'Varun Maya',
-  'Managing Director',
-  '2026-01-15',
-  'APPROVED',
-  'ACTIVE',
-  '2028-11-30',
-  'COMPLIANT',
-  'varun@aeoslabs.in',
-  '+91 98401 23456',
-  'ACTIVE'
-),
-(
-  'dir_rahul_002',
-  'comp_aeos_001',
-  '09124589',
-  'Rahul Menon',
-  'Director',
-  '2026-01-15',
-  'APPROVED',
-  'ACTIVE',
-  '2026-09-15',
-  'COMPLIANT',
-  'rahul@aeoslabs.in',
-  '+91 98402 34567',
-  'RESIGNATION_IN_PROGRESS'
-);
-
--- 4. Insert Compliance Deadlines for Aeos Labs
-INSERT INTO public.compliance_deadlines (
-  id, company_id, title, form_code, section,
-  due_date, urgency, penalty_per_day, description, status
-) VALUES
-(
-  'dl_dir12_001',
-  'comp_aeos_001',
-  'Director Cessation Filing (Rahul Menon)',
-  'DIR-12',
-  'Section 168, Companies Act 2013',
-  '2026-09-24',
-  'critical',
-  100,
-  'Statutory 30-day window following resignation of Director Rahul Menon on 25 Aug 2026. Action in progress.',
-  'IN_PROGRESS'
-),
-(
-  'dl_aoc4_002',
-  'comp_aeos_001',
-  'Annual Financial Statements Filing',
-  'AOC-4',
-  'Section 137, Companies Act 2013',
-  '2026-10-30',
-  'upcoming',
-  100,
-  'Filing of balance sheet and profit & loss statement.',
-  'PENDING'
-),
-(
-  'dl_mgt7_003',
-  'comp_aeos_001',
-  'Annual Return of Company',
-  'MGT-7A',
-  'Section 92, Companies Act 2013',
-  '2026-11-29',
-  'upcoming',
-  100,
-  'Annual return filing for small company / startup.',
-  'PENDING'
-);
-
--- 5. Insert Prepared MCP Action for Rahul Menon's Resignation
-INSERT INTO public.mcp_actions (
-  id, workspace_id, company_id, company_name, user_id,
-  action_type, status, payload, preview,
-  confirmation_token, confirmation_expires_at,
-  authorization_required, authorization_type, authorization_status,
-  client_metadata
-) VALUES
-(
-  'act_dir_demo_001',
-  'ws_aeos_labs_001',
-  'comp_aeos_001',
-  'Aeos Labs Private Limited',
-  'usr_varun_maya',
-  'DIRECTOR_CHANGE',
-  'AWAITING_USER_CONFIRMATION',
-  '{"company_id_or_cin": "U62099TN2026PTCDEMO001", "change_type": "RESIGNATION", "director_name": "Rahul Menon", "din": "09124589", "effective_date": "2026-08-25", "reason": "Personal reasons", "documents": ["Rahul_Menon_Resignation_Letter.pdf"]}'::jsonb,
-  '{
-    "form_code": "DIR-12",
-    "action_summary": "Process statutory cessation of Director Rahul Menon (DIN: 09124589) from Aeos Labs Private Limited",
-    "company_name": "Aeos Labs Private Limited",
-    "statutory_section": "Section 168 of Companies Act 2013 read with Rule 15 of Companies Rules",
-    "deadline": "24 September 2026 (Strict 30 days statutory window)",
-    "required_documents": [
-      "Formal Resignation Notice / Letter from Director (Rahul_Menon_Resignation_Letter.pdf)",
-      "Certified True Copy of Board Resolution noting the cessation"
-    ],
-    "missing_requirements": [],
-    "prerequisites": [
-      "Director Identification Number (DIN: 09124589) in APPROVED status",
-      "Signing Managing Director (Varun Maya) active Class 3 DSC token"
-    ],
-    "form_fields": {
-      "director_name": "Rahul Menon",
-      "din": "09124589",
-      "change_category": "RESIGNATION",
-      "effective_date": "2026-08-25",
-      "reason": "Personal reasons"
-    },
-    "estimated_fee": 300,
-    "estimated_penalty_per_day": 100,
-    "notice": "DEMO EXECUTION MODE: Prepares standard e-Form DIR-12 schema with statutory compliance safeguards."
-  }'::jsonb,
-  'act_tok_demo_rahul_resignation_2026',
-  NOW() + INTERVAL '30 days',
-  TRUE,
-  'DSC_SIGNATURE',
-  'PENDING',
-  '{"client_name": "Future MCA AI Assistant", "client_type": "Conversational Agent"}'::jsonb
-);
-
--- 6. Insert Knowledge Base Records
-INSERT INTO public.knowledge_documents (
-  id, title, category, summary, official_guidance,
-  relevant_forms, act_sections, keywords
-) VALUES
-(
-  'kb_incorporation_001',
-  'Company Incorporation & SPICe+ Workflow',
-  'Company Incorporation',
-  'Complete guide for incorporating a Private Limited company in India via integrated SPICe+ (INC-32) Part A and Part B suite.',
-  'Under the Companies Act 2013, new company registration is processed through SPICe+ integrated form covering Name Reservation, Incorporation, DIN allocation, PAN, TAN, EPFO, ESIC, Professional Tax, and Bank Account opening.',
-  ARRAY['SPICe+ Part A', 'SPICe+ Part B', 'INC-33 (e-MOA)', 'INC-34 (e-AOA)', 'AGILE-PRO-S'],
-  ARRAY['Section 7, Companies Act 2013', 'Companies (Incorporation) Rules 2014'],
-  ARRAY['incorporate', 'start company', 'new company', 'SPICe+', 'registration', 'incorporation']
-),
-(
-  'kb_director_resignation_002',
-  'Director Resignation and Company Record Update',
-  'Director Changes',
-  'When a director resigns, the company must update official MCA registry records via Form DIR-12 within 30 days.',
-  'Under Section 168 of the Companies Act 2013, a director may resign by giving written notice. The company must hold a board meeting, take note of the resignation, and file Form DIR-12 with the Registrar of Companies within 30 days along with certified resolution copy and resignation letter.',
-  ARRAY['DIR-12', 'DIR-11'],
-  ARRAY['Section 168, Companies Act 2013', 'Rule 15, Companies (Appointment and Qualification of Directors) Rules 2014'],
-  ARRAY['director resigned', 'director resignation', 'remove director', 'director change', 'DIR-12', 'cessation']
-),
-(
-  'kb_annual_compliance_003',
-  'Statutory Annual Compliance Schedule for Startups',
-  'Compliance',
-  'Annual statutory filings required for Private Limited companies including financial statements (AOC-4) and annual return (MGT-7A).',
-  'All incorporated companies must file Form AOC-4 within 30 days of AGM (Section 137) and Form MGT-7/MGT-7A within 60 days of AGM (Section 92). Delay attracts standard additional fee of Rs 100 per day per form.',
-  ARRAY['AOC-4', 'MGT-7A', 'DIR-3 KYC', 'DPT-3'],
-  ARRAY['Section 92', 'Section 137'],
-  ARRAY['compliance', 'annual return', 'financial statements', 'AOC-4', 'MGT-7', 'deadlines']
-);
+END $$;
