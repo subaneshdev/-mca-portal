@@ -4,7 +4,6 @@ import { FilingService } from '@/lib/services/filingService';
 import { DiagnosticService } from '@/lib/services/diagnosticService';
 import { KnowledgeService } from '@/lib/services/knowledgeService';
 import { ActionService, ActionContext } from '@/lib/services/actionService';
-import { PRIMARY_DEMO_COMPANY, PRIMARY_DEMO_DIRECTORS } from '@/lib/services/seedService';
 
 export interface ToolDefinition {
   name: string;
@@ -473,38 +472,52 @@ export async function executeMcpTool(
     }
     case 'get_company_profile': {
       const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
-      const company = await CompanyService.getCompanyByCin(target || PRIMARY_DEMO_COMPANY.cin, context.workspaceId);
-      const rawDirectors = await CompanyService.getCompanyDirectors(company?.id || PRIMARY_DEMO_COMPANY.id);
+      let company = target ? await CompanyService.getCompanyByCin(target, context.workspaceId) : null;
+      if (!company) {
+        const all = await CompanyService.listCompanies(context.workspaceId);
+        if (all.length > 0) company = all[0];
+      }
+      if (!company) {
+        return {
+          error: 'No registered company found in this workspace. Create one or provide a valid CIN.'
+        };
+      }
+      const rawDirectors = await CompanyService.getCompanyDirectors(company.id || company.cin);
       return {
         company: {
-          name: company?.name || PRIMARY_DEMO_COMPANY.name,
-          cin: company?.cin || PRIMARY_DEMO_COMPANY.cin,
-          company_type: company?.legal_type || PRIMARY_DEMO_COMPANY.legal_type,
-          business_activity: 'AI Infrastructure and Enterprise Automation',
-          registered_office: company?.registered_office || PRIMARY_DEMO_COMPANY.registered_office,
-          authorized_capital: '₹10,00,000',
-          paid_up_capital: '₹10,00,000',
-          status: 'Active',
+          name: company.name,
+          cin: company.cin,
+          company_type: company.legal_type || 'Private Limited Company',
+          business_activity: 'Technology & Enterprise Services',
+          registered_office: company.registered_office || 'Registered Office',
+          authorized_capital: `₹${(company.authorized_capital || 1000000).toLocaleString('en-IN')}`,
+          paid_up_capital: `₹${(company.paid_up_capital || 100000).toLocaleString('en-IN')}`,
+          status: company.status || 'Active',
           directors: rawDirectors.map((d: any) => ({
             name: d.full_name,
             din: d.din,
             status: (d.status === 'RESIGNED' || d.cessation_date) ? 'Resigned' : 'Active'
           })),
-          compliance_status: company?.next_action || 'Statutory compliance tracking active'
+          compliance_status: company.next_action || 'Statutory compliance tracking active'
         }
       };
     }
     case 'get_company_directors': {
       const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
-      const companyId = target || PRIMARY_DEMO_COMPANY.cin;
-      const rawDirectors = await CompanyService.getCompanyDirectors(companyId);
+      let company = target ? await CompanyService.getCompanyByCin(target, context.workspaceId) : null;
+      if (!company) {
+        const all = await CompanyService.listCompanies(context.workspaceId);
+        if (all.length > 0) company = all[0];
+      }
+      const companyId = company ? (company.id || company.cin) : target;
+      const rawDirectors = companyId ? await CompanyService.getCompanyDirectors(companyId) : [];
 
       const activeDirectors = rawDirectors.filter((d: any) => d.status !== 'RESIGNED' && !d.cessation_date);
       const formerDirectors = rawDirectors.filter((d: any) => d.status === 'RESIGNED' || d.cessation_date);
 
       return {
-        company: PRIMARY_DEMO_COMPANY.name,
-        cin: PRIMARY_DEMO_COMPANY.cin,
+        company: company?.name || 'Company',
+        cin: company?.cin || target,
         active_directors: activeDirectors.map(d => ({
           name: d.full_name,
           din: d.din,
@@ -516,18 +529,18 @@ export async function executeMcpTool(
           din: d.din,
           designation: d.designation || 'Director',
           status: 'Resigned',
-          effective_date: d.cessation_date || '15 August 2026'
+          effective_date: d.cessation_date || new Date().toISOString().split('T')[0]
         })),
         directors: rawDirectors.map((d: any) => ({
           name: d.full_name,
           din: d.din,
           designation: d.designation || 'Director',
           status: (d.status === 'RESIGNED' || d.cessation_date) ? 'Resigned' : 'Active',
-          effective_date: d.cessation_date || (d.status === 'RESIGNED' ? '15 August 2026' : undefined)
+          effective_date: d.cessation_date
         })),
         total: rawDirectors.length,
         summary_view: formerDirectors.length > 0
-          ? `ACTIVE DIRECTORS:\n${activeDirectors.map(d => `• ${d.full_name} — Active`).join('\n')}\n\nFORMER DIRECTORS:\n${formerDirectors.map(d => `• ${d.full_name}\n  Status: Resigned\n  Effective Date: ${d.cessation_date || '15 August 2026'}`).join('\n')}`
+          ? `ACTIVE DIRECTORS:\n${activeDirectors.map(d => `• ${d.full_name} — Active`).join('\n')}\n\nFORMER DIRECTORS:\n${formerDirectors.map(d => `• ${d.full_name}\n  Status: Resigned\n  Effective Date: ${d.cessation_date || 'N/A'}`).join('\n')}`
           : activeDirectors.map(d => `• ${d.full_name} — Active`).join('\n')
       };
     }
@@ -536,55 +549,23 @@ export async function executeMcpTool(
       const deadlines = await ComplianceService.listCompliance({
         companyId: target || undefined,
         urgency: args.urgency
-      });
-      const hasResigned = PRIMARY_DEMO_DIRECTORS.some(d => (d as any).status === 'RESIGNED' || (d as any).cessation_date);
-      const allDeadlines = [...deadlines];
-      if (hasResigned && !allDeadlines.some(d => d.form_code === 'DIR-12')) {
-        allDeadlines.unshift({
-          id: 'dl_dir12_resignation',
-          company_id: PRIMARY_DEMO_COMPANY.id,
-          title: 'Form DIR-12 (Director Resignation - Arun Kumar)',
-          form_code: 'DIR-12',
-          due_date: '2026-09-14',
-          urgency: 'action_required',
-          status: 'PREPARED',
-          section: 'Sec 168, Companies Act 2013',
-          penalty_per_day: 100,
-          description: 'Statutory return for cessation of Director Arun Kumar within 30 days of effective date.'
-        } as any);
-      }
-      const criticalCount = allDeadlines.filter(d => d.urgency === 'critical').length;
-      const actionCount = allDeadlines.filter(d => d.urgency === 'action_required').length;
+      }).catch(() => []);
+      const criticalCount = deadlines.filter(d => d.urgency === 'critical').length;
+      const actionCount = deadlines.filter(d => d.urgency === 'action_required').length;
       return {
-        deadlines: allDeadlines,
+        deadlines,
         summary: {
           critical: criticalCount,
           action_required: actionCount,
-          upcoming: allDeadlines.filter(d => d.urgency === 'upcoming').length,
+          upcoming: deadlines.filter(d => d.urgency === 'upcoming').length,
           risk_level: criticalCount > 0 ? 'HIGH_RISK' : actionCount > 0 ? 'ATTENTION_NEEDED' : 'HEALTHY'
         }
       };
     }
     case 'get_upcoming_deadlines': {
       const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
-      const deadlines = await ComplianceService.getUpcomingDeadlines(target || undefined);
-      const hasResigned = PRIMARY_DEMO_DIRECTORS.some(d => (d as any).status === 'RESIGNED' || (d as any).cessation_date);
-      const allDeadlines = [...deadlines];
-      if (hasResigned && !allDeadlines.some(d => d.form_code === 'DIR-12')) {
-        allDeadlines.unshift({
-          id: 'dl_dir12_resignation',
-          company_id: PRIMARY_DEMO_COMPANY.id,
-          title: 'Form DIR-12 (Director Resignation - Arun Kumar)',
-          form_code: 'DIR-12',
-          due_date: '2026-09-14',
-          urgency: 'action_required',
-          status: 'PREPARED',
-          section: 'Sec 168, Companies Act 2013',
-          penalty_per_day: 100,
-          description: 'Statutory return for cessation of Director Arun Kumar within 30 days of effective date.'
-        } as any);
-      }
-      return { deadlines: allDeadlines, total: allDeadlines.length };
+      const deadlines = await ComplianceService.getUpcomingDeadlines(target || undefined).catch(() => []);
+      return { deadlines, total: deadlines.length };
     }
     case 'get_next_required_action': {
       const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
@@ -664,37 +645,37 @@ export async function executeMcpTool(
     // ----------------------------------------------------
     case 'start_company_incorporation': {
       return {
-        workflow_id: 'inc_demo_001',
+        workflow_id: `inc_${Date.now()}`,
         status: 'COLLECTING_INFORMATION',
         next_step: 'COMPANY_NAME',
-        message: 'Great. What would you like to name your company?'
+        message: 'What would you like to name your company?'
       };
     }
     case 'check_company_name_availability': {
-      const companyName = args.company_name || args.name || 'Aether Labs Private Limited';
+      const companyName = args.company_name || args.name || 'New Venture Private Limited';
       return {
         available: true,
         company_name: companyName,
-        message: 'The company name appears to be available.'
+        message: `${companyName} appears to be available for incorporation.`
       };
     }
     case 'collect_company_details': {
       return {
         status: 'DETAILS_COLLECTED',
-        company_name: args.company_name || 'Aether Labs Private Limited',
+        company_name: args.company_name || 'New Venture Private Limited',
         company_type: args.company_type || 'Private Limited Company',
-        business_activity: args.business_activity || 'AI Infrastructure and Enterprise Automation',
-        registered_office: args.registered_office || 'Chennai, Tamil Nadu, India',
+        business_activity: args.business_activity || 'Technology & Enterprise Services',
+        registered_office: args.registered_office || 'India',
         authorized_capital: args.authorized_capital || '₹10,00,000',
         next_step: 'ADD_DIRECTORS',
-        message: 'Company details collected. Who will be the directors?'
+        message: 'Company details recorded. Who will be the directors?'
       };
     }
     case 'add_company_director': {
       return {
         status: 'DIRECTOR_ADDED',
         director: {
-          full_name: args.director_name || 'Varun Maya',
+          full_name: args.director_name || 'Director',
           designation: args.designation || 'Director',
           status: 'Active'
         }
@@ -731,8 +712,6 @@ export async function executeMcpTool(
                         office.toLowerCase().includes('delhi') ? 'DL' : 'TN';
       const cin = `U62099${stateCode}2026PTC${uniqueSuffix}`;
 
-      // Create via CompanyService — this pushes into DYNAMIC_COMPANIES + PORTFOLIO_COMPANIES
-      // so it will appear on ALL dashboards immediately on next load
       try {
         await CompanyService.createCompany({
           name,
@@ -743,12 +722,12 @@ export async function executeMcpTool(
           paid_up_capital: capitalNum
         }, directorEntries);
       } catch {
-        // offline fallback — still in DYNAMIC_COMPANIES from createCompany's memory push
+        // offline fallback
       }
 
       return {
         status: 'CREATED',
-        message: `Done. ${name} has been created in Future MCA. I've added the company, its directors, and the initial compliance workspace.`,
+        message: `Done. ${name} has been created in Future MCA. Added company, directors, and compliance workspace.`,
         company: {
           name,
           cin,
@@ -762,32 +741,47 @@ export async function executeMcpTool(
     }
 
     // ----------------------------------------------------
-    // HACKATHON WORKFLOW 2: MY DIRECTOR RESIGNED
+    // WORKFLOW 2: MY DIRECTOR RESIGNED
     // ----------------------------------------------------
     case 'prepare_director_resignation': {
-      const directorName = args.director_name || 'Arun Kumar';
-      const effectiveDate = args.effective_date || '15 August 2026';
+      const directorName = args.director_name || 'Director';
+      const effectiveDate = args.effective_date || new Date().toISOString().split('T')[0];
+      const target = (args.company_name || args.cin || '').trim();
+      let company = target ? await CompanyService.getCompanyByCin(target, context.workspaceId) : null;
+      if (!company) {
+        const all = await CompanyService.listCompanies(context.workspaceId);
+        if (all.length > 0) company = all[0];
+      }
+      const companyName = company?.name || 'Your Company';
       return {
         status: 'PREPARED',
         summary: {
-          company: 'Aether Labs Private Limited',
+          company: companyName,
           director: directorName,
           change: 'Director Resignation',
           effective_date: effectiveDate,
           relevant_mca_filing: 'DIR-12'
         },
-        confirmation_prompt: 'Would you like me to update the director change and prepare the DIR-12 workflow?'
+        confirmation_prompt: `Would you like me to record ${directorName}'s resignation from ${companyName} and prepare the DIR-12 workflow?`
       };
     }
     case 'process_director_resignation': {
-      const directorName = args.director_name || 'Arun Kumar';
-      const effectiveDate = args.effective_date || '15 August 2026';
-      const result = await CompanyService.resignDirector('U62099TN2026PTC145678', directorName, effectiveDate, args.reason);
+      const directorName = args.director_name || 'Director';
+      const effectiveDate = args.effective_date || new Date().toISOString().split('T')[0];
+      const target = (args.company_name || args.cin || '').trim();
+      let company = target ? await CompanyService.getCompanyByCin(target, context.workspaceId) : null;
+      if (!company) {
+        const all = await CompanyService.listCompanies(context.workspaceId);
+        if (all.length > 0) company = all[0];
+      }
+      const companyName = company?.name || 'Your Company';
+      const companyId = company ? (company.id || company.cin) : 'comp_resignation';
+      const result = await CompanyService.resignDirector(companyId, directorName, effectiveDate, args.reason);
 
       return {
         status: 'SUCCESS',
-        message: `Done. ${directorName}'s resignation has been recorded. I've updated the company records and prepared the DIR-12 filing workflow.`,
-        company: 'Aether Labs Private Limited',
+        message: `Done. ${directorName}'s resignation has been recorded for ${companyName}. I've updated the company records and prepared the DIR-12 filing workflow.`,
+        company: companyName,
         director: directorName,
         director_status: 'Resigned',
         effective_date: effectiveDate,

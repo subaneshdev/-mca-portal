@@ -35,32 +35,43 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
-  // Synchronously initialize from localStorage or default to Founder
+  // Synchronously initialize from localStorage or null
   const [user, setUser] = useState<any | null>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('future_mca_user');
       if (stored) {
-        try { return JSON.parse(stored); } catch { return null; }
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed?.id === 'usr_varun_maya' || parsed?.email?.includes('aeoslabs') || parsed?.email?.includes('aetherlabs')) {
+            localStorage.removeItem('future_mca_user');
+            localStorage.removeItem('future_mca_profile');
+            localStorage.removeItem('future_mca_selected_company_id');
+            return null;
+          }
+          return parsed;
+        } catch { return null; }
       }
     }
-    return { id: 'usr_varun_maya', email: 'varun@aeoslabs.in' };
+    return null;
   });
 
   const [profile, setProfile] = useState<UserProfile | null>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('future_mca_profile');
       if (stored) {
-        try { return JSON.parse(stored); } catch { return null; }
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed?.full_name === 'Varun Maya' || parsed?.full_name === 'Ananya Krishnan' || parsed?.id === 'usr_varun_maya' || parsed?.email?.includes('aeoslabs') || parsed?.email?.includes('aetherlabs')) {
+            localStorage.removeItem('future_mca_profile');
+            localStorage.removeItem('future_mca_user');
+            localStorage.removeItem('future_mca_selected_company_id');
+            return null;
+          }
+          return parsed;
+        } catch { return null; }
       }
     }
-    return {
-      id: 'usr_varun_maya',
-      email: 'varun@aetherlabs.in',
-      full_name: 'Varun Maya',
-      persona: 'founder',
-      role: 'FOUNDER',
-      onboarding_completed: true
-    };
+    return null;
   });
 
   const [role, setRoleState] = useState<WorkspaceRole>(() => {
@@ -134,9 +145,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
       if (!activeUser) {
         activeUser = {
-          id: 'usr_varun_maya',
-          email: 'varun@aeoslabs.in',
-          user_metadata: { full_name: 'Varun Maya', persona: 'founder' }
+          id: 'usr_founder',
+          email: 'founder@futuremca.in',
+          user_metadata: { full_name: 'Founder User', persona: 'founder' }
         };
       }
 
@@ -146,9 +157,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       const localRole = (typeof window !== 'undefined' ? localStorage.getItem('future_mca_role') : null) as WorkspaceRole || 'founder';
       const isCA = localRole === 'professional';
       const userProfile: UserProfile = {
-        id: activeUser.id || (isCA ? 'usr_ananya_krishnan' : 'usr_varun_maya'),
-        email: activeUser.email || (isCA ? 'ananya@krishnanpartners.in' : 'varun@aeoslabs.in'),
-        full_name: activeUser.user_metadata?.full_name || (isCA ? 'Ananya Krishnan' : 'Varun Maya'),
+        id: activeUser.id,
+        email: activeUser.email || (isCA ? 'ca@futuremca.in' : 'founder@futuremca.in'),
+        full_name: activeUser.user_metadata?.full_name || (isCA ? 'Chartered Accountant' : 'Founder User'),
         persona: activeUser.user_metadata?.persona || localRole
       };
       setProfile(userProfile);
@@ -172,8 +183,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         setCurrentWorkspace(activeWs);
       } else {
         const defaultWs: Workspace = {
-          id: 'ws_aeos_labs_001',
-          name: isCA ? 'Krishnan & Partners CA Practice' : 'Aeos Labs Workspace',
+          id: `ws_${userProfile.persona}_001`,
+          name: isCA ? 'CA & Corporate Advisory Workspace' : 'Primary Business Workspace',
           type: userProfile.persona,
           created_at: new Date().toISOString()
         };
@@ -309,9 +320,14 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Load realistic demo company
+  // Load preset company for testing
   const loadDemoCompany = async (preset: 'ziggers' | 'unfounded' | 'futurefoods' = 'ziggers'): Promise<Company> => {
-    const created = await CompanyService.seedDemoCompany(currentWorkspace?.id, preset);
+    const name = preset === 'ziggers' ? 'Ziggers Private Limited' : preset === 'unfounded' ? 'Unfounded Technologies Private Limited' : 'Future Foods Private Limited';
+    const created = await CompanyService.createCompany({
+      name,
+      legal_type: 'Private Limited Company',
+      workspace_id: currentWorkspace?.id || null
+    });
     await refreshCompanies();
     setSelectedCompany(created);
     return created;

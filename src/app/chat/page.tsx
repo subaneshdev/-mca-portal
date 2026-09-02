@@ -28,9 +28,9 @@ import {
   Plus,
   ArrowRight,
   RefreshCw,
-  Building2
+  Building2,
+  Briefcase
 } from "lucide-react";
-import { PRIMARY_DEMO_COMPANY } from "@/lib/services/seedService";
 import { CompanyService } from "@/lib/services/companyService";
 
 interface AutoResizeProps {
@@ -118,8 +118,8 @@ export function ChatContent() {
     maxHeight: 160,
   });
 
-  const activeCompany = selectedCompany || PRIMARY_DEMO_COMPANY;
-  const founderName = profile?.full_name || "Varun Maya";
+  const activeCompany = selectedCompany;
+  const founderName = profile?.full_name || "Founder";
 
   // Redirect to onboarding if not completed
   useEffect(() => {
@@ -167,9 +167,9 @@ export function ChatContent() {
         body: JSON.stringify({
           message: messageToSend,
           context: {
-            companyName: activeCompany.name,
-            cin: activeCompany.cin,
-            workspaceId: activeCompany.workspace_id || "ws_aeos_labs_001",
+            companyName: activeCompany?.name || "",
+            cin: activeCompany?.cin || "",
+            workspaceId: activeCompany?.workspace_id || "",
           },
         }),
       });
@@ -218,9 +218,9 @@ export function ChatContent() {
         body: JSON.stringify({
           message: "confirm and directly add",
           context: {
-            companyName: activeCompany.name,
-            cin: activeCompany.cin,
-            workspaceId: activeCompany.workspace_id || "ws_aeos_labs_001",
+            companyName: activeCompany?.name || "",
+            cin: activeCompany?.cin || "",
+            workspaceId: activeCompany?.workspace_id || "",
           },
         }),
       });
@@ -278,13 +278,26 @@ export function ChatContent() {
             </div>
             <span className="font-semibold text-sm tracking-tight text-white">Founders AI</span>
           </Link>
-          <span className="text-white/30 text-xs hidden sm:inline">•</span>
-          <span className="text-xs text-neutral-300 font-medium hidden sm:inline truncate">
-            {activeCompany.name}
-          </span>
+          {activeCompany?.name && (
+            <>
+              <span className="text-white/30 text-xs hidden sm:inline">•</span>
+              <span className="text-xs text-neutral-300 font-medium hidden sm:inline truncate">
+                {activeCompany.name}
+              </span>
+            </>
+          )}
         </div>
 
         <div className="flex items-center space-x-3">
+          <Link
+            href="/overview"
+            className="text-xs font-semibold text-blue-300 hover:text-white flex items-center space-x-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 px-3 py-1.5 rounded-lg transition-all shadow-xs"
+            title="Switch to Chartered Accountant & CS Practice Hub"
+          >
+            <Briefcase className="w-3.5 h-3.5 text-blue-400" />
+            <span>CA View</span>
+          </Link>
+
           <Link
             href="/actions"
             className="text-xs font-medium text-neutral-200 hover:text-white flex items-center space-x-1.5 bg-white/10 hover:bg-white/15 border border-white/10 px-3 py-1.5 rounded-lg transition-all"

@@ -10,56 +10,9 @@ import {
 } from '@/types/actions';
 import { CompanyService } from './companyService';
 import { FilingService } from './filingService';
-import { PRIMARY_DEMO_COMPANY } from './seedService';
 
-// In-memory cache for fast responsive fallbacks and test environments
-const AZLER_ACTION: McpAction = {
-  id: 'act_azler_001',
-  workspace_id: 'ws_subaneshofficial',
-  company_id: 'comp_azler_001',
-  company_name: 'Azler Private Limited',
-  user_id: 'usr_subaneesh',
-  action_type: 'COMPANY_REGISTRATION',
-  status: 'SUBMITTED',
-  external_reference: 'DEMO-SRN-2026-075616',
-  payload: {
-    company_name: 'Azler Private Limited',
-    company_type: 'PVT_LTD',
-    registered_state: 'Tamil Nadu',
-    authorized_capital: 100000,
-    paid_up_capital: 100000,
-    directors: ['Subaneesh', 'Aakash']
-  },
-  preview: {
-    form_code: 'SPICe+ (INC-32)',
-    action_summary: 'Incorporate new Private Limited entity: "Azler Private Limited"',
-    company_name: 'Azler Private Limited',
-    statutory_section: 'Section 7 of Companies Act 2013',
-    deadline: 'Filed and Submitted',
-    required_documents: ['SPICe+ MOA', 'SPICe+ AOA', 'DIR-2 Consent'],
-    missing_requirements: [],
-    prerequisites: ['Director KYC', 'Registered Office Proof'],
-    form_fields: {},
-    estimated_fee: 1000
-  },
-  authorization_required: false,
-  authorization_status: 'AUTHORIZED',
-  execution_receipt: {
-    reference_number: 'DEMO-SRN-2026-075616',
-    submitted_at: '2026-09-02T19:42:16.000Z',
-    mode: 'SIMULATED_DEMO_EXECUTION',
-    statutory_filing_fee: 1000,
-    challan_receipt: 'CHALLAN-TN-075616',
-    confirmation_message: 'Statutory e-Form SPICe+ has been securely processed. Internal workflow recorded with Reference: DEMO-SRN-2026-075616.'
-  },
-  created_at: '2026-09-02T19:40:00.000Z',
-  updated_at: '2026-09-02T19:42:16.000Z',
-  executed_at: '2026-09-02T19:42:16.000Z'
-};
-
-const ACTION_STORE = new Map<string, McpAction>([
-  [AZLER_ACTION.id, AZLER_ACTION]
-]);
+// In-memory action store — populated at runtime by MCP tool calls
+const ACTION_STORE = new Map<string, McpAction>();
 const AUDIT_STORE: McpActionAuditLog[] = [];
 
 export interface ActionContext {
@@ -938,7 +891,7 @@ export class ActionService {
         const din = action.payload?.din || '09124589';
 
         if (changeType === 'APPOINTMENT') {
-          const companyId = action.company_id || 'comp_aeos_001';
+          const companyId = action.company_id || action.payload?.company_id || '';
           await CompanyService.addDirector(companyId, {
             full_name: action.payload?.director_name || 'New Director',
             din: din,
@@ -954,9 +907,9 @@ export class ActionService {
           await this.persistAction(action);
         } else {
           await CompanyService.resignDirector(
-            action.company_id || PRIMARY_DEMO_COMPANY.cin,
-            action.payload?.director_name || 'Arun Kumar',
-            action.payload?.effective_date || '15 August 2026'
+            action.company_id || '',
+            action.payload?.director_name || 'Director',
+            action.payload?.effective_date || new Date().toISOString().split('T')[0]
           );
 
           await supabase
@@ -1001,9 +954,9 @@ export class ActionService {
 
     // 5. Also register into applications / filings in Supabase so it shows on the UI dashboards
     try {
-      if (action.company_id || action.payload.company_cin) {
+      if (action.company_id || action.payload?.company_cin) {
         await supabase.from('filings').insert({
-          company_id: action.company_id || 'comp_aeos_001',
+          company_id: action.company_id || '',
           form_code: action.preview.form_code || 'DIR-12',
           form_title: action.preview.action_summary,
           category: action.action_type,
@@ -1017,7 +970,7 @@ export class ActionService {
         });
 
         await supabase.from('applications').insert({
-          company_id: action.company_id || 'comp_aeos_001',
+          company_id: action.company_id || '',
           application_no: srn,
           title: action.preview.action_summary,
           type: action.action_type === 'DIRECTOR_CHANGE' ? 'DIRECTOR_CHANGE' : 'ANNUAL_FILING',

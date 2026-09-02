@@ -6,9 +6,9 @@ import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { ComplianceService } from '@/lib/services/complianceService';
-import { FilingService } from '@/lib/services/filingService';
 import { CompanyService } from '@/lib/services/companyService';
 import { ComplianceDeadline, Application, Company } from '@/types';
+import { FilingService } from '@/lib/services/filingService';
 import { 
   AlertTriangle, 
   Building2, 
@@ -22,7 +22,6 @@ import {
   CheckCircle2,
   FileText
 } from 'lucide-react';
-import { PORTFOLIO_COMPANIES, PRIMARY_DEMO_DEADLINES } from '@/lib/services/seedService';
 
 export default function OverviewDashboard() {
   const router = useRouter();
@@ -39,7 +38,7 @@ export default function OverviewDashboard() {
     }
   }, [profile, router]);
 
-  const [deadlines, setDeadlines] = useState<ComplianceDeadline[]>(PRIMARY_DEMO_DEADLINES);
+  const [deadlines, setDeadlines] = useState<ComplianceDeadline[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
@@ -52,7 +51,7 @@ export default function OverviewDashboard() {
     }).catch(() => {});
   }, []);
 
-  const combinedList = [...extraCompanies, ...allCompanies, ...PORTFOLIO_COMPANIES];
+  const combinedList = [...extraCompanies, ...allCompanies];
   const seenNames = new Set<string>();
   const companiesList = combinedList.filter(c => {
     const key = (c.name || '').toLowerCase().trim();
@@ -60,16 +59,16 @@ export default function OverviewDashboard() {
     seenNames.add(key);
     return true;
   });
-  const caName = profile?.persona === 'professional' ? profile?.full_name : 'Ananya Krishnan';
+  const displayName = profile?.full_name || 'there';
 
   useEffect(() => {
     const load = async () => {
       try {
         const [compData, appData] = await Promise.all([
-          ComplianceService.listCompliance().catch(() => PRIMARY_DEMO_DEADLINES),
+          ComplianceService.listCompliance().catch(() => []),
           FilingService.listApplications().catch(() => [])
         ]);
-        setDeadlines(compData.length > 0 ? compData : PRIMARY_DEMO_DEADLINES);
+        setDeadlines(compData);
         setApplications(appData);
       } catch {
         // graceful
@@ -79,6 +78,7 @@ export default function OverviewDashboard() {
   }, []);
 
   const criticalItems = deadlines.filter(d => d.urgency === 'critical');
+  const actionRequiredItems = deadlines.filter(d => d.urgency === 'action_required');
   const upcomingItems = deadlines.filter(d => d.urgency === 'upcoming');
 
   const standardFormsCatalogue = [
@@ -119,15 +119,16 @@ export default function OverviewDashboard() {
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-[10px] font-bold font-mono uppercase tracking-wider text-neutral-800 bg-neutral-100 px-2 py-0.5 rounded border border-neutral-300">
-                CA / CS Operational Workspace
+                {profile?.persona === 'professional' ? 'CA / CS Workspace' : 'Founder Workspace'}
               </span>
-              <span className="text-xs text-neutral-500">• Krishnan & Partners Practice Hub</span>
             </div>
             <h1 className="text-2xl font-black tracking-tight text-neutral-900 mt-1.5">
-              Good morning, {caName}.
+              Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {displayName}.
             </h1>
             <p className="text-xs text-neutral-600 mt-0.5">
-              Managing corporate compliance portfolio, statutory action queues, and filings for Aether Labs.
+              {companiesList.length > 0
+                ? `Managing ${companiesList.length} ${companiesList.length === 1 ? 'company' : 'companies'} in your portfolio.`
+                : 'Start by adding a company or using Founders AI to register one.'}
             </p>
           </div>
 
@@ -137,7 +138,7 @@ export default function OverviewDashboard() {
               className="px-3.5 py-2 rounded-xl bg-white hover:bg-neutral-50 border border-neutral-300 text-neutral-900 font-bold text-xs flex items-center space-x-1.5 transition-all shadow-xs"
             >
               <Bot className="w-4 h-4 text-neutral-700" />
-              <span>Founder AI Chat</span>
+              <span>Founders AI</span>
             </Link>
 
             <Link
@@ -158,64 +159,22 @@ export default function OverviewDashboard() {
             <div className="text-[11px] text-neutral-500">Active portfolio entities</div>
           </div>
 
-          <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl shadow-xs space-y-1">
+          <div className={`p-5 ${criticalItems.length > 0 ? 'bg-amber-50 border-amber-200' : 'bg-white border-neutral-200'} border rounded-2xl shadow-xs space-y-1`}>
             <div className="text-[10px] font-bold uppercase tracking-wider text-amber-900">Urgent Actions</div>
-            <div className="text-3xl font-black text-amber-700">1</div>
-            <div className="text-[11px] text-amber-800">Aeos Labs DIR-12 Resignation</div>
+            <div className="text-3xl font-black text-amber-700">{criticalItems.length}</div>
+            <div className="text-[11px] text-amber-800">{criticalItems.length > 0 ? criticalItems[0].title : 'No urgent items'}</div>
           </div>
 
           <div className="p-5 bg-neutral-50 border border-neutral-200 rounded-2xl shadow-xs space-y-1">
             <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-600">Upcoming Deadlines</div>
-            <div className="text-3xl font-black text-neutral-800">{upcomingItems.length || 2}</div>
+            <div className="text-3xl font-black text-neutral-800">{upcomingItems.length}</div>
             <div className="text-[11px] text-neutral-500">Scheduled next 30-60 days</div>
           </div>
 
           <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl shadow-xs space-y-1">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-900">Actions Awaiting Review</div>
-            <div className="text-3xl font-black text-emerald-700">1</div>
-            <div className="text-[11px] text-emerald-800">Ready for DSC Authorization</div>
-          </div>
-        </div>
-
-        {/* PRIMARY PORTFOLIO ACTION: AEOS LABS DIR-12 WORKFLOW */}
-        <div className="bg-white border-2 border-neutral-900 rounded-2xl shadow-sm p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-200 pb-3">
-            <div className="flex items-center space-x-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-900">
-                Primary Open Workflow: Director Resignation (DIR-12)
-              </h2>
-            </div>
-            <span className="text-xs font-mono font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">
-              Priority: High (Statutory 30 Days)
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-1">
-              <div className="text-[10px] uppercase font-bold text-neutral-500">Target Entity</div>
-              <div className="text-xs font-bold text-neutral-900">Aeos Labs Private Limited</div>
-              <div className="text-[10px] font-mono text-neutral-500">U62099TN2026PTCDEMO001 (ROC Chennai)</div>
-            </div>
-
-            <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-1">
-              <div className="text-[10px] uppercase font-bold text-neutral-500">Resigning Director</div>
-              <div className="text-xs font-bold text-neutral-900">Rahul Menon</div>
-              <div className="text-[10px] font-mono text-neutral-500">DIN: 09124589 | Notice Date: 25 Aug 2026</div>
-            </div>
-
-            <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-xl flex flex-col justify-between space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold text-neutral-500">Action Status</span>
-                <span className="text-[10px] font-bold text-amber-700">Awaiting User Confirmation</span>
-              </div>
-              <Link
-                href="/actions/act_dir_demo_001"
-                className="w-full py-2 bg-neutral-900 hover:bg-black text-white text-center font-bold text-xs rounded-lg transition-all shadow-xs"
-              >
-                Review Prepared DIR-12 &rarr;
-              </Link>
-            </div>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-900">Action Required</div>
+            <div className="text-3xl font-black text-emerald-700">{actionRequiredItems.length}</div>
+            <div className="text-[11px] text-emerald-800">{actionRequiredItems.length > 0 ? 'Pending review' : 'All clear'}</div>
           </div>
         </div>
 
@@ -223,33 +182,90 @@ export default function OverviewDashboard() {
         <div className="bg-white border border-neutral-200 rounded-2xl shadow-xs p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
             <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-900">
-              Client Portfolio Overview ({companiesList.length} Entities)
+              {companiesList.length > 0 ? `Client Portfolio Overview (${companiesList.length} Entities)` : 'Client Portfolio Overview'}
             </h2>
             <Link href="/companies" className="text-xs font-bold text-neutral-900 hover:underline">
               View All Companies &rarr;
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {companiesList.map((c) => (
-              <div key={c.id} className="p-4 bg-neutral-50 border border-neutral-200 hover:border-neutral-400 rounded-xl transition-all space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="font-bold text-xs text-neutral-900 truncate">{c.name}</div>
-                  <span className="text-[9px] font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
-                    {c.status}
+          {companiesList.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {companiesList.map((c) => (
+                <div key={c.id} className="p-4 bg-neutral-50 border border-neutral-200 hover:border-neutral-400 rounded-xl transition-all space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="font-bold text-xs text-neutral-900 truncate">{c.name}</div>
+                    <span className="text-[9px] font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
+                      {c.status}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-neutral-500 font-mono">{c.cin}</div>
+                  <div className="flex items-center justify-between pt-1 border-t border-neutral-200/60 text-xs">
+                    <span className="text-[11px] text-neutral-600 truncate">{c.next_action || 'No pending actions'}</span>
+                    <Link href={`/filings/new?company=${encodeURIComponent(c.cin)}`} className="text-[11px] font-bold text-neutral-900 hover:underline">
+                      Prepare &rarr;
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-neutral-100 text-neutral-400 flex items-center justify-center mx-auto border border-neutral-200">
+                <Building2 className="w-6 h-6" />
+              </div>
+              <h4 className="text-sm font-bold text-neutral-900">No companies yet</h4>
+              <p className="text-xs text-neutral-500 max-w-md mx-auto">
+                Add a company manually or use Founders AI to incorporate a new entity through MCA.
+              </p>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <Link
+                  href="/companies"
+                  className="px-4 py-2 text-xs font-bold bg-neutral-900 text-white rounded-lg hover:bg-black transition-all"
+                >
+                  Add Company
+                </Link>
+                <Link
+                  href="/chat?query=I+want+to+start+a+company"
+                  className="px-4 py-2 text-xs font-bold bg-white text-neutral-900 border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-all"
+                >
+                  Start with AI
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* COMPLIANCE DEADLINES */}
+        {deadlines.length > 0 && (
+          <div className="bg-white border border-neutral-200 rounded-2xl shadow-xs p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-900">
+                Compliance Deadlines ({deadlines.length})
+              </h2>
+              <Link href="/compliance" className="text-xs font-bold text-neutral-900 hover:underline">
+                View All &rarr;
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {filteredDeadlines.slice(0, 5).map((d) => (
+                <div key={d.id} className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-bold text-neutral-900">{d.title}</div>
+                    <div className="text-[10px] text-neutral-500 font-mono">{d.form_code} • Due: {d.due_date}</div>
+                  </div>
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded ${
+                    d.urgency === 'critical' ? 'bg-red-100 text-red-700' :
+                    d.urgency === 'action_required' ? 'bg-amber-100 text-amber-700' :
+                    'bg-neutral-100 text-neutral-600'
+                  }`}>
+                    {d.urgency?.replace('_', ' ').toUpperCase()}
                   </span>
                 </div>
-                <div className="text-[10px] text-neutral-500 font-mono">{c.cin}</div>
-                <div className="flex items-center justify-between pt-1 border-t border-neutral-200/60 text-xs">
-                  <span className="text-[11px] text-neutral-600 truncate">{c.next_action}</span>
-                  <Link href={`/filings/new?company=${encodeURIComponent(c.cin)}`} className="text-[11px] font-bold text-neutral-900 hover:underline">
-                    Prepare &rarr;
-                  </Link>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* DIRECT E-FORMS CATALOGUE */}
         <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-6 space-y-4 shadow-xs">
