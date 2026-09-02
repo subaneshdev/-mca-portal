@@ -1,3 +1,10 @@
+export type UserRole =
+  | 'FOUNDER'
+  | 'BUSINESS_OWNER'
+  | 'CA'
+  | 'CS'
+  | 'COMPLIANCE_PROFESSIONAL';
+
 export type WorkspaceRole = 'founder' | 'professional';
 
 export interface UserProfile {
@@ -5,6 +12,8 @@ export interface UserProfile {
   email: string;
   full_name: string;
   persona: WorkspaceRole;
+  role?: UserRole;
+  onboarding_completed?: boolean;
   created_at?: string;
   updated_at?: string;
 }

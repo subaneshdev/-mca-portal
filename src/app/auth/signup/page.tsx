@@ -17,18 +17,15 @@ function SignUpForm() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [persona, setPersonaChoice] = useState<WorkspaceRole>('founder');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const navigateAfterAuth = (userPersona: WorkspaceRole) => {
+  const navigateAfterAuth = () => {
     if (nextDestination) {
       router.push(nextDestination);
-    } else if (userPersona === 'professional') {
-      router.push('/overview');
     } else {
-      router.push('/chat');
+      router.push('/onboarding');
     }
   };
 
@@ -51,7 +48,7 @@ function SignUpForm() {
         options: {
           data: {
             full_name: cleanName,
-            persona
+            onboarding_completed: false
           }
         }
       });
@@ -69,11 +66,12 @@ function SignUpForm() {
               id: signInData.user.id,
               email: cleanEmail,
               full_name: cleanName,
-              persona
+              persona: 'founder',
+              onboarding_completed: false
             };
             setUserSession(signInData.user, userProfile);
             await refreshCompanies();
-            navigateAfterAuth(persona);
+            navigateAfterAuth();
             return;
           }
         }
@@ -82,32 +80,23 @@ function SignUpForm() {
         return;
       }
 
-      // 2. Auto-create user's initial workspace in Supabase
-      try {
-        await supabase
-          .from('workspaces')
-          .insert({
-            name: `${cleanName}'s Workspace`,
-            type: persona
-          });
-      } catch (wsErr) {
-        console.warn('Workspace creation notice:', wsErr);
-      }
-
       const activeUser = data.user || { id: 'usr-new-signup', email: cleanEmail };
       const userProfile: UserProfile = {
         id: activeUser.id,
         email: cleanEmail,
         full_name: cleanName,
-        persona
+        persona: 'founder',
+        onboarding_completed: false
       };
 
       setUserSession(activeUser, userProfile);
-      await refreshCompanies();
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('future_mca_onboarding_completed', 'false');
+      }
 
-      setSuccessMsg('Account created successfully! Redirecting...');
+      setSuccessMsg('Account created! Proceeding to role setup...');
       setTimeout(() => {
-        navigateAfterAuth(persona);
+        navigateAfterAuth();
       }, 500);
     } catch (err: any) {
       // Fallback local session
@@ -116,10 +105,11 @@ function SignUpForm() {
         id: 'usr-local-signup',
         email: cleanEmail,
         full_name: cleanName,
-        persona
+        persona: 'founder',
+        onboarding_completed: false
       };
       setUserSession(fallbackUser, fallbackProfile);
-      navigateAfterAuth(persona);
+      navigateAfterAuth();
     } finally {
       setLoading(false);
     }
@@ -211,46 +201,6 @@ function SignUpForm() {
                   placeholder="••••••••"
                   className="w-full pl-9 pr-3 py-2 text-xs border border-[#E5E5E5] rounded-lg outline-none focus:border-[#2563EB] text-[#0A0A0A] bg-white font-medium"
                 />
-              </div>
-            </div>
-
-            {/* Persona Selector */}
-            <div>
-              <label className="block text-xs font-semibold text-[#0A0A0A] mb-1.5">
-                Primary Workspace Role
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPersonaChoice('founder')}
-                  className={`p-2.5 rounded-lg border text-left transition-all ${
-                    persona === 'founder'
-                      ? 'border-[#0066CC] bg-[#EFF6FF] text-[#0066CC]'
-                      : 'border-[#E5E5E5] hover:border-[#CBD5E1] text-[#737373]'
-                  }`}
-                >
-                  <div className="flex items-center space-x-1.5 text-xs font-bold">
-                    <Building2 className="w-3.5 h-3.5" />
-                    <span>Founder</span>
-                  </div>
-                  <div className="text-[10px] text-[#64748B] mt-0.5">Conversational UI</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPersonaChoice('professional')}
-                  className={`p-2.5 rounded-lg border text-left transition-all ${
-                    persona === 'professional'
-                      ? 'border-[#0B2545] bg-[#F1F5F9] text-[#0B2545]'
-                      : 'border-[#E5E5E5] hover:border-[#CBD5E1] text-[#737373]'
-                  }`}
-                >
-                  <div className="flex items-center space-x-1.5 text-xs font-bold">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>CA / CS</span>
-                  </div>
-                  <div className="text-[10px] text-[#64748B] mt-0.5">Operational Matrix</div>
-                </button>
               </div>
             </div>
 

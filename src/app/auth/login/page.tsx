@@ -20,9 +20,11 @@ function LoginForm() {
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const navigateAfterAuth = (userPersona: WorkspaceRole) => {
+  const navigateAfterAuth = (userPersona: WorkspaceRole, onboardingCompleted?: boolean) => {
     if (nextDestination) {
       router.push(nextDestination);
+    } else if (onboardingCompleted === false) {
+      router.push('/onboarding');
     } else if (userPersona === 'professional') {
       router.push('/overview');
     } else {
@@ -88,15 +90,17 @@ function LoginForm() {
 
       if (data.user) {
         const userPersona = (data.user.user_metadata?.persona as WorkspaceRole) || 'founder';
+        const isOnboarded = data.user.user_metadata?.onboarding_completed ?? (typeof window !== 'undefined' ? localStorage.getItem('future_mca_onboarding_completed') === 'true' : false);
         const userProfile: UserProfile = {
           id: data.user.id,
           email: cleanEmail,
           full_name: data.user.user_metadata?.full_name || cleanEmail.split('@')[0],
-          persona: userPersona
+          persona: userPersona,
+          onboarding_completed: isOnboarded
         };
         setUserSession(data.user, userProfile);
         await refreshCompanies();
-        navigateAfterAuth(userPersona);
+        navigateAfterAuth(userPersona, isOnboarded);
       }
     } catch (err: any) {
       // Graceful fallback session so user is never blocked

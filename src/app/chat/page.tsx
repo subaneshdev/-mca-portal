@@ -121,6 +121,13 @@ export function ChatContent() {
   const activeCompany = selectedCompany || PRIMARY_DEMO_COMPANY;
   const founderName = profile?.full_name || "Varun Maya";
 
+  // Redirect to onboarding if not completed
+  useEffect(() => {
+    if (profile && profile.onboarding_completed === false) {
+      router.push('/onboarding');
+    }
+  }, [profile, router]);
+
   // Auto-scroll on new messages
   useEffect(() => {
     if (hasStartedChat) {

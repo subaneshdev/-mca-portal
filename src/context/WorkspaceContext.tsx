@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Company, Director, Workspace, WorkspaceRole, UserProfile } from '@/types';
+import { Company, Director, Workspace, WorkspaceRole, UserProfile, UserRole } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { CompanyService } from '@/lib/services/companyService';
 
@@ -9,7 +9,9 @@ interface WorkspaceContextType {
   user: any | null;
   profile: UserProfile | null;
   role: WorkspaceRole;
+  userRole?: UserRole;
   setRole: (role: WorkspaceRole) => Promise<void>;
+  completeOnboarding: (role: UserRole, customWorkspaceName?: string) => Promise<{ destination: string }>;
   workspaces: Workspace[];
   currentWorkspace: Workspace | null;
   switchWorkspace: (workspaceId: string) => Promise<void>;
@@ -55,7 +57,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       id: 'usr_varun_maya',
       email: 'varun@aeoslabs.in',
       full_name: 'Varun Maya',
-      persona: 'founder'
+      persona: 'founder',
+      role: 'FOUNDER',
+      onboarding_completed: true
     };
   });
 
@@ -64,6 +68,13 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       return (localStorage.getItem('future_mca_role') as WorkspaceRole) || 'founder';
     }
     return 'founder';
+  });
+
+  const [userRole, setUserRoleState] = useState<UserRole>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('future_mca_user_role') as UserRole) || 'FOUNDER';
+    }
+    return 'FOUNDER';
   });
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -347,13 +358,74 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     setIsAiDrawerOpen(true);
   };
 
+  // Complete Onboarding: Save explicit role and route to the correct workspace
+  const completeOnboarding = useCallback(async (
+    selectedRole: UserRole,
+    customWorkspaceName?: string
+  ): Promise<{ destination: string }> => {
+    setIsLoading(true);
+    const isFounder = selectedRole === 'FOUNDER' || selectedRole === 'BUSINESS_OWNER';
+    const persona: WorkspaceRole = isFounder ? 'founder' : 'professional';
+    const destination = isFounder ? '/chat' : '/overview';
+
+    const updatedProfile: UserProfile = {
+      ...(profile || {
+        id: user?.id || 'usr-default',
+        email: user?.email || 'user@futuremca.in',
+        full_name: user?.user_metadata?.full_name || (isFounder ? 'Business Owner' : 'CA Professional'),
+      }),
+      persona,
+      role: selectedRole,
+      onboarding_completed: true,
+      updated_at: new Date().toISOString()
+    };
+
+    setProfile(updatedProfile);
+    setRoleState(persona);
+    setUserRoleState(selectedRole);
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('future_mca_profile', JSON.stringify(updatedProfile));
+      localStorage.setItem('future_mca_role', persona);
+      localStorage.setItem('future_mca_user_role', selectedRole);
+      localStorage.setItem('future_mca_onboarding_completed', 'true');
+    }
+
+    const wsName = customWorkspaceName || (
+      isFounder
+        ? `${updatedProfile.full_name || 'My'} Business Workspace`
+        : `${updatedProfile.full_name || 'Professional'} & Associates Practice`
+    );
+
+    try {
+      const ws = await createWorkspace(wsName, persona);
+      setCurrentWorkspace(ws);
+    } catch {
+      const fallbackWs: Workspace = {
+        id: `ws_${persona}_${Date.now()}`,
+        name: wsName,
+        type: persona,
+        created_at: new Date().toISOString()
+      };
+      setWorkspaces([fallbackWs]);
+      setCurrentWorkspace(fallbackWs);
+    }
+
+    await refreshCompanies();
+    setIsLoading(false);
+
+    return { destination };
+  }, [profile, user, createWorkspace, refreshCompanies]);
+
   return (
     <WorkspaceContext.Provider
       value={{
         user,
         profile,
         role,
+        userRole,
         setRole,
+        completeOnboarding,
         workspaces,
         currentWorkspace,
         switchWorkspace,

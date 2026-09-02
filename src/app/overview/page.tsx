@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { ComplianceService } from '@/lib/services/complianceService';
@@ -23,12 +24,19 @@ import {
 import { PORTFOLIO_COMPANIES, PRIMARY_DEMO_DEADLINES } from '@/lib/services/seedService';
 
 export default function OverviewDashboard() {
+  const router = useRouter();
   const { 
     profile, 
     user, 
     allCompanies, 
     dbError 
   } = useWorkspace();
+
+  useEffect(() => {
+    if (profile && profile.onboarding_completed === false) {
+      router.push('/onboarding');
+    }
+  }, [profile, router]);
 
   const [deadlines, setDeadlines] = useState<ComplianceDeadline[]>(PRIMARY_DEMO_DEADLINES);
   const [applications, setApplications] = useState<Application[]>([]);
