@@ -84,15 +84,67 @@ export const MOCK_COMPANIES: Company[] = [
       action_required: 0,
       upcoming: 0
     }
+  },
+  {
+    id: 'c0000000-0000-0000-0000-000000000005',
+    cin: 'U72900KA2022PTC158942',
+    name: 'Future Labs Private Limited',
+    legal_type: 'Private Limited Company',
+    status: 'ACTIVE',
+    paid_up_capital: 1000000,
+    authorized_capital: 2500000,
+    incorporation_date: '2022-05-18',
+    roc_jurisdiction: 'ROC Bangalore',
+    registered_office: '9th Floor, Brigade Tech Park, Whitefield, Bangalore, Karnataka - 560066',
+    email: 'c.subanesh@gmail.com',
+    pan: 'AABCF5566R',
+    gst: '29AABCF5566R1Z2',
+    next_action: 'DIR-12 Resignation Draft Ready',
+    compliance_count: {
+      critical: 1,
+      action_required: 1,
+      upcoming: 2
+    }
   }
 ];
 
 export const MOCK_DIRECTORS: Record<string, Director[]> = {
+  'c0000000-0000-0000-0000-000000000005': [
+    {
+      id: 'd0000000-0000-0000-0000-000000000009',
+      company_id: 'c0000000-0000-0000-0000-000000000005',
+      din: '08945120',
+      full_name: 'Subanesh R',
+      designation: 'Managing Director',
+      appointment_date: '2022-05-18',
+      din_status: 'APPROVED',
+      dsc_status: 'ACTIVE',
+      dsc_expiry: '2027-11-30',
+      kyc_status: 'COMPLIANT',
+      email: 'c.subanesh@gmail.com',
+      phone: '+91 98401 23456'
+    },
+    {
+      id: 'd0000000-0000-0000-0000-000000000010',
+      company_id: 'c0000000-0000-0000-0000-000000000005',
+      din: '08947219',
+      full_name: 'Ananya Sharma',
+      designation: 'Director',
+      appointment_date: '2022-05-18',
+      din_status: 'APPROVED',
+      dsc_status: 'ACTIVE',
+      dsc_expiry: '2026-09-15',
+      kyc_status: 'COMPLIANT',
+      email: 'c.subanesh@gmail.com',
+      phone: '+91 98402 34567'
+    }
+  ],
   'c0000000-0000-0000-0000-000000000001': [
     {
       id: 'd0000000-0000-0000-0000-000000000001',
       company_id: 'c0000000-0000-0000-0000-000000000001',
       din: '08945120',
+
       full_name: 'Subanesh M.',
       designation: 'Managing Director',
       appointment_date: '2021-04-12',
