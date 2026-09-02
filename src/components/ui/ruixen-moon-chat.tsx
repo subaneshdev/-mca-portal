@@ -16,14 +16,7 @@ import {
   Palette,
   Layers,
   Rocket,
-  Sparkles,
-  Building2,
-  ShieldAlert,
-  FileText,
-  UserX,
-  Search
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 interface AutoResizeProps {
   minHeight: number;
@@ -61,21 +54,18 @@ function useAutoResizeTextarea({ minHeight, maxHeight }: AutoResizeProps) {
 }
 
 interface RuixenMoonChatProps {
-  onSendMessage?: (msg: string) => void;
   title?: string;
   subtitle?: string;
-  bgImageUrl?: string;
+  onSendMessage?: (msg: string) => void;
   quickActions?: { icon: React.ReactNode; label: string; query?: string }[];
 }
 
 export default function RuixenMoonChat({
+  title = "Ruixen AI",
+  subtitle = "Build something amazing — just start typing below.",
   onSendMessage,
-  title = "Founders AI",
-  subtitle = "Understand, incorporate and manage your company with autonomous intelligence.",
-  bgImageUrl = "https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/ruixen_moon_2.png",
-  quickActions
-}: RuixenMoonChatProps) {
-  const router = useRouter();
+  quickActions,
+}: RuixenMoonChatProps = {}) {
   const [message, setMessage] = useState("");
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({
     minHeight: 48,
@@ -86,8 +76,8 @@ export default function RuixenMoonChat({
     if (!message.trim()) return;
     if (onSendMessage) {
       onSendMessage(message);
-    } else {
-      router.push(`/chat?query=${encodeURIComponent(message)}`);
+    } else if (typeof window !== "undefined") {
+      window.location.href = `/chat?query=${encodeURIComponent(message)}`;
     }
     setMessage("");
     adjustHeight(true);
@@ -100,58 +90,49 @@ export default function RuixenMoonChat({
     }
   };
 
-  const handleQuickAction = (label: string, query?: string) => {
-    const q = query || label;
-    if (onSendMessage) {
-      onSendMessage(q);
-    } else {
-      router.push(`/chat?query=${encodeURIComponent(q)}`);
-    }
-  };
+  interface QuickActionItem {
+    icon: React.ReactNode;
+    label: string;
+    query?: string;
+  }
 
-  const defaultQuickActions = [
-    { icon: <Building2 className="w-4 h-4 text-[#60A5FA]" />, label: "Start a Company", query: "I want to start a company" },
-    { icon: <UserX className="w-4 h-4 text-[#F87171]" />, label: "A Director Resigned", query: "A director resigned from our board" },
-    { icon: <ShieldAlert className="w-4 h-4 text-[#FBBF24]" />, label: "Know What's Due", query: "What filings and compliances are due this month?" },
-    { icon: <FileText className="w-4 h-4 text-[#34D399]" />, label: "Prepare DIR-12", query: "Prepare DIR-12 director cessation requirements" },
-    { icon: <Search className="w-4 h-4 text-[#A78BFA]" />, label: "Diagnose Filing Error", query: "Diagnose MCA rejection error" },
-    { icon: <Sparkles className="w-4 h-4 text-[#38BDF8]" />, label: "Connect MCP AI", query: "How do I connect Claude or Cursor via MCP?" },
-    { icon: <Rocket className="w-4 h-4 text-[#EC4899]" />, label: "Track SRN Application", query: "Track application status for my SRN" },
-    { icon: <Layers className="w-4 h-4 text-[#94A3B8]" />, label: "Annual Compliance (AOC-4)", query: "What is required for AOC-4 and MGT-7 filings?" },
+  const defaultQuickActions: QuickActionItem[] = [
+    { icon: <Code2 className="w-4 h-4" />, label: "Generate Code" },
+    { icon: <Rocket className="w-4 h-4" />, label: "Launch App" },
+    { icon: <Layers className="w-4 h-4" />, label: "UI Components" },
+    { icon: <Palette className="w-4 h-4" />, label: "Theme Ideas" },
+    { icon: <CircleUserRound className="w-4 h-4" />, label: "User Dashboard" },
+    { icon: <MonitorIcon className="w-4 h-4" />, label: "Landing Page" },
+    { icon: <FileUp className="w-4 h-4" />, label: "Upload Docs" },
+    { icon: <ImageIcon className="w-4 h-4" />, label: "Image Assets" },
   ];
 
   const actions = quickActions || defaultQuickActions;
 
   return (
     <div
-      className="relative w-full h-full min-h-screen bg-cover bg-center flex flex-col items-center justify-between p-4 sm:p-6"
+      className="relative w-full h-screen bg-cover bg-center flex flex-col items-center"
       style={{
-        backgroundImage: `url('${bgImageUrl}')`,
+        backgroundImage:
+          "url('https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/ruixen_moon_2.png')",
         backgroundAttachment: "fixed",
       }}
     >
-      {/* Dark overlay for optimal text contrast */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-xs pointer-events-none z-0" />
-
       {/* Centered AI Title */}
-      <div className="relative z-10 flex-1 w-full flex flex-col items-center justify-center pt-12 pb-6">
-        <div className="text-center max-w-2xl px-4 animate-in fade-in slide-in-from-bottom-3 duration-500">
-          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white text-xs mb-4 backdrop-blur-md">
-            <Sparkles className="w-3.5 h-3.5 text-[#60A5FA]" />
-            <span className="font-medium">Future MCA &bull; Founder Autonomous Copilot</span>
-          </div>
-          <h1 className="text-3xl sm:text-5xl font-bold text-white tracking-tight drop-shadow-md">
+      <div className="flex-1 w-full flex flex-col items-center justify-center">
+        <div className="text-center px-4">
+          <h1 className="text-4xl sm:text-5xl font-semibold text-white drop-shadow-sm">
             {title}
           </h1>
-          <p className="mt-3 text-sm sm:text-base text-neutral-300 max-w-xl mx-auto leading-relaxed">
+          <p className="mt-2 text-neutral-200 text-sm sm:text-base">
             {subtitle}
           </p>
         </div>
       </div>
 
       {/* Input Box Section */}
-      <div className="relative z-10 w-full max-w-3xl mb-[8vh] sm:mb-[12vh]">
-        <div className="relative bg-black/75 backdrop-blur-xl rounded-2xl border border-neutral-700/80 shadow-2xl focus-within:border-neutral-500 transition-colors">
+      <div className="w-full max-w-3xl mb-[15vh] sm:mb-[20vh] px-4">
+        <div className="relative bg-black/60 backdrop-blur-md rounded-xl border border-neutral-700">
           <Textarea
             ref={textareaRef}
             value={message}
@@ -160,58 +141,59 @@ export default function RuixenMoonChat({
               adjustHeight();
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Ask anything about your company, filings, ROC compliance or incorporation..."
+            placeholder="Type your request..."
             className={cn(
-              "w-full px-5 py-4 resize-none border-none",
-              "bg-transparent text-white text-sm sm:text-base",
+              "w-full px-4 py-3 resize-none border-none",
+              "bg-transparent text-white text-sm",
               "focus-visible:ring-0 focus-visible:ring-offset-0",
-              "placeholder:text-neutral-400 min-h-[52px]"
+              "placeholder:text-neutral-400 min-h-[48px]"
             )}
             style={{ overflow: "hidden" }}
           />
 
           {/* Footer Buttons */}
-          <div className="flex items-center justify-between px-4 py-3 border-t border-white/10">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-neutral-300 hover:text-white hover:bg-neutral-800 rounded-full h-8 w-8"
-                title="Attach Document or Board Resolution"
-              >
-                <Paperclip className="w-4 h-4" />
-              </Button>
-              <span className="text-[11px] text-neutral-400 hidden sm:inline font-mono">
-                Press Enter ↵ to send
-              </span>
-            </div>
+          <div className="flex items-center justify-between p-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-neutral-700"
+            >
+              <Paperclip className="w-4 h-4" />
+            </Button>
 
             <div className="flex items-center gap-2">
               <Button
                 onClick={handleSend}
                 disabled={!message.trim()}
                 className={cn(
-                  "flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all",
+                  "flex items-center gap-1 px-3 py-2 rounded-lg transition-colors cursor-pointer",
                   message.trim()
-                    ? "bg-white text-black hover:bg-neutral-200 cursor-pointer shadow-sm"
-                    : "bg-neutral-800 text-neutral-500 cursor-not-allowed"
+                    ? "bg-white text-black hover:bg-neutral-200"
+                    : "bg-neutral-700 text-neutral-400 cursor-not-allowed"
                 )}
               >
-                <span>Ask AI</span>
-                <ArrowUpIcon className="w-3.5 h-3.5" />
+                <ArrowUpIcon className="w-4 h-4" />
+                <span className="sr-only">Send</span>
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Quick Actions Grid */}
-        <div className="flex items-center justify-center flex-wrap gap-2 sm:gap-2.5 mt-6">
+        {/* Quick Actions */}
+        <div className="flex items-center justify-center flex-wrap gap-2.5 sm:gap-3 mt-6">
           {actions.map((act, idx) => (
             <QuickAction
               key={idx}
               icon={act.icon}
               label={act.label}
-              onClick={() => handleQuickAction(act.label, act.query)}
+              onClick={() => {
+                const q = act.query || act.label;
+                if (onSendMessage) {
+                  onSendMessage(q);
+                } else if (typeof window !== "undefined") {
+                  window.location.href = `/chat?query=${encodeURIComponent(q)}`;
+                }
+              }}
             />
           ))}
         </div>
@@ -231,10 +213,10 @@ function QuickAction({ icon, label, onClick }: QuickActionProps) {
     <Button
       variant="outline"
       onClick={onClick}
-      className="flex items-center gap-2 rounded-full border-neutral-700/80 bg-black/60 backdrop-blur-md text-neutral-200 hover:text-white hover:bg-neutral-800/90 hover:border-neutral-500 transition-all text-xs py-1.5 px-3.5 h-auto shadow-sm"
+      className="flex items-center gap-2 rounded-full border-neutral-700 bg-black/50 text-neutral-300 hover:text-white hover:bg-neutral-700"
     >
       {icon}
-      <span>{label}</span>
+      <span className="text-xs">{label}</span>
     </Button>
   );
 }
