@@ -392,51 +392,65 @@ if __name__ == "__main__":
             </button>
           </div>
 
-          {/* Tab 1: Claude Desktop (3 Easy Steps) */}
+          {/* Tab 1: Claude Desktop (Exact 3-Step Guide) */}
           {activeTab === 'claude-desktop' && (
             <div className="space-y-6 pt-2">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-                  <div className="flex items-center space-x-2">
-                    <span className="w-5 h-5 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-xs">
+              <div className="space-y-3">
+                <div className="text-[11px] font-black uppercase tracking-wider text-[#334155]">
+                  STEP-BY-STEP CONNECTION GUIDE IN CLAUDE:
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Card 1 */}
+                  <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-2.5">
+                    <div className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs">
                       1
-                    </span>
-                    <span className="text-xs font-bold text-neutral-900">Copy MCP Config</span>
+                    </div>
+                    <div className="text-xs font-bold text-[#0F172A]">
+                      Add Connector in Claude
+                    </div>
+                    <div className="text-[11px] text-[#64748B] space-y-1">
+                      <div>Paste Server URL:</div>
+                      <div className="font-mono text-[10px] text-[#2563EB] bg-[#EFF6FF] border border-[#DBEAFE] px-2 py-1 rounded-md break-all select-all font-semibold">
+                        {mcpUrl}
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-neutral-600">
-                    Click &ldquo;Copy Configuration&rdquo; below to copy the JSON block with your remote endpoint.
-                  </p>
-                </div>
 
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-                  <div className="flex items-center space-x-2">
-                    <span className="w-5 h-5 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-xs">
+                  {/* Card 2 */}
+                  <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-2.5">
+                    <div className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs">
                       2
-                    </span>
-                    <span className="text-xs font-bold text-neutral-900">Paste in Claude</span>
+                    </div>
+                    <div className="text-xs font-bold text-[#0F172A]">
+                      Select OAuth Options
+                    </div>
+                    <div className="text-[11px] text-[#64748B] space-y-1">
+                      <div>• Auth: <strong className="text-[#334155]">Required when server asks</strong> (or Always)</div>
+                      <div>• OAuth Client: <strong className="text-[#334155]">Use Anthropic&apos;s hosted client metadata</strong></div>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-neutral-600">
-                    In Claude Desktop, go to <strong>Settings &rarr; Developer &rarr; Edit Config</strong> and paste into <code className="font-mono text-[10px] bg-slate-200 px-1 py-0.5 rounded">claude_desktop_config.json</code>.
-                  </p>
-                </div>
 
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-                  <div className="flex items-center space-x-2">
-                    <span className="w-5 h-5 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-xs">
+                  {/* Card 3 */}
+                  <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-2.5">
+                    <div className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs">
                       3
-                    </span>
-                    <span className="text-xs font-bold text-neutral-900">Restart & Query</span>
+                    </div>
+                    <div className="text-xs font-bold text-[#0F172A]">
+                      Sign In & Authorize
+                    </div>
+                    <div className="text-[11px] text-[#64748B] leading-relaxed">
+                      Claude opens popup &rarr; select your Workspace &rarr; Click <strong className="text-[#334155]">Authorize Claude</strong> &rarr; Complete!
+                    </div>
                   </div>
-                  <p className="text-[11px] text-neutral-600">
-                    Restart Claude and type: <em>&ldquo;My director Rahul Menon resigned from Aeos Labs&rdquo;</em>.
-                  </p>
                 </div>
               </div>
 
-              <div className="space-y-2">
+              {/* JSON Config Fallback for Claude Desktop config file */}
+              <div className="space-y-2 pt-2 border-t border-[#E2E8F0]">
                 <div className="flex items-center justify-between">
                   <div className="text-xs text-[#64748B]">
-                    JSON Configuration block:
+                    Or add via <code className="font-mono text-[#0F172A] font-semibold bg-slate-100 px-1 py-0.5 rounded">claude_desktop_config.json</code>:
                   </div>
                   <button
                     onClick={() => handleCopy(claudeDesktopConfigJson, 'claude')}

@@ -150,42 +150,55 @@ export default function AiClientsAndMcpPage() {
             </button>
           </div>
 
-          {/* 3 Easy Steps */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200 space-y-1">
-              <div className="flex items-center space-x-2">
-                <span className="w-5 h-5 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-xs">
+          {/* STEP-BY-STEP CONNECTION GUIDE IN CLAUDE */}
+          <div className="space-y-3">
+            <div className="text-[11px] font-black uppercase tracking-wider text-[#334155]">
+              STEP-BY-STEP CONNECTION GUIDE IN CLAUDE:
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Card 1 */}
+              <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-2.5">
+                <div className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs">
                   1
-                </span>
-                <span className="text-xs font-bold text-neutral-900">Copy JSON Config</span>
+                </div>
+                <div className="text-xs font-bold text-[#0F172A]">
+                  Add Connector in Claude
+                </div>
+                <div className="text-[11px] text-[#64748B] space-y-1">
+                  <div>Paste Server URL:</div>
+                  <div className="font-mono text-[10px] text-[#2563EB] bg-[#EFF6FF] border border-[#DBEAFE] px-2 py-1 rounded-md break-all select-all font-semibold">
+                    {mcpUrl}
+                  </div>
+                </div>
               </div>
-              <p className="text-[11px] text-neutral-600">
-                Click &ldquo;Copy Claude Config&rdquo; button to copy the MCP server configuration.
-              </p>
-            </div>
 
-            <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200 space-y-1">
-              <div className="flex items-center space-x-2">
-                <span className="w-5 h-5 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-xs">
+              {/* Card 2 */}
+              <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-2.5">
+                <div className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs">
                   2
-                </span>
-                <span className="text-xs font-bold text-neutral-900">Paste in Claude Settings</span>
+                </div>
+                <div className="text-xs font-bold text-[#0F172A]">
+                  Select OAuth Options
+                </div>
+                <div className="text-[11px] text-[#64748B] space-y-1">
+                  <div>• Auth: <strong className="text-[#334155]">Required when server asks</strong> (or Always)</div>
+                  <div>• OAuth Client: <strong className="text-[#334155]">Use Anthropic&apos;s hosted client metadata</strong></div>
+                </div>
               </div>
-              <p className="text-[11px] text-neutral-600">
-                Open Claude Desktop &rarr; <strong>Settings &rarr; Developer &rarr; Edit Config</strong> (<code className="text-[10px] font-mono">claude_desktop_config.json</code>).
-              </p>
-            </div>
 
-            <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200 space-y-1">
-              <div className="flex items-center space-x-2">
-                <span className="w-5 h-5 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-xs">
+              {/* Card 3 */}
+              <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-2.5">
+                <div className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs">
                   3
-                </span>
-                <span className="text-xs font-bold text-neutral-900">Restart & Run Prompts</span>
+                </div>
+                <div className="text-xs font-bold text-[#0F172A]">
+                  Sign In & Authorize
+                </div>
+                <div className="text-[11px] text-[#64748B] leading-relaxed">
+                  Claude opens popup &rarr; select your Workspace &rarr; Click <strong className="text-[#334155]">Authorize Claude</strong> &rarr; Complete!
+                </div>
               </div>
-              <p className="text-[11px] text-neutral-600">
-                Restart Claude and prompt: <em>&ldquo;My director Rahul Menon resigned from Aeos Labs&rdquo;</em>.
-              </p>
             </div>
           </div>
 
