@@ -99,45 +99,6 @@ function AuthorizeContent() {
     setLoading(false);
   };
 
-  const handleQuickDemoLogin = async (role: 'founder' | 'professional') => {
-    setLoading(true);
-    setAuthError(null);
-    const demoEmail = 'c.subanesh@gmail.com';
-    
-    // Auto-create workspace if needed
-    const { data: wsData } = await supabase
-      .from('workspaces')
-      .select('*')
-      .limit(1);
-
-    let activeWs = wsData?.[0];
-    if (!activeWs) {
-      const { data: newWs } = await supabase
-        .from('workspaces')
-        .insert({
-          name: role === 'founder' ? 'Ziggers Startup Workspace' : 'CA Professional Practice',
-          type: role
-        })
-        .select()
-        .single();
-      activeWs = newWs;
-    }
-
-    setUser({
-      id: `usr_${role}_${Date.now()}`,
-      email: demoEmail,
-      user_metadata: { full_name: 'Subanesh M.' }
-    });
-
-    if (activeWs) {
-      setWorkspaces([activeWs]);
-      setSelectedWorkspace(activeWs);
-      const comps = await CompanyService.listCompanies(activeWs.id).catch(() => []);
-      setCompanies(comps);
-    }
-    setLoading(false);
-  };
-
   const handleApprove = () => {
     setAuthorizing(true);
     const wsId = selectedWorkspace?.id || 'ws-default';
@@ -232,26 +193,6 @@ function AuthorizeContent() {
                 Sign In & Continue
               </button>
             </form>
-
-            <div className="border-t border-[#E5E5E5] pt-3 text-center space-y-2">
-              <span className="text-[11px] text-[#737373]">Or 1-click test authorization:</span>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin('founder')}
-                  className="py-1.5 px-2 bg-[#F7F7F5] hover:bg-[#EFF6FF] border border-[#E5E5E5] rounded text-xs font-medium text-[#0A0A0A]"
-                >
-                  Founder Persona
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin('professional')}
-                  className="py-1.5 px-2 bg-[#F7F7F5] hover:bg-[#EFF6FF] border border-[#E5E5E5] rounded text-xs font-medium text-[#0A0A0A]"
-                >
-                  CA Firm Persona
-                </button>
-              </div>
-            </div>
           </div>
         )}
 

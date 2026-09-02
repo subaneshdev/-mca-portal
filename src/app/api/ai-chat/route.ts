@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ActionService } from '@/lib/services/actionService';
+import { CompanyService } from '@/lib/services/companyService';
 import { PRIMARY_DEMO_COMPANY, PRIMARY_DEMO_DIRECTORS } from '@/lib/services/seedService';
 
 export const runtime = 'nodejs';
@@ -30,7 +31,7 @@ Instructions:
 1. Provide helpful, conversational, clear advice without overwhelming legal jargon.
 2. If the user asks about director resignation, explain that Rahul Menon's resignation on 25 August 2026 requires Form DIR-12 under Section 168.
 3. If the user asks to incorporate/start a company, explain the SPICe+ Part A/B workflow step-by-step.
-4. Always uphold the Zero Silent Execution principle (AI prepares and previews, human confirms and signs via DSC).`
+4. Direct Director Addition: If the user asks to add a person as a director ("add X as director"), DO NOT demand DSC authorization. Create an 8-digit DIN, ask confirmation, and directly add them to the company without requiring DSC.`
               }
             ]
           }
@@ -56,6 +57,146 @@ export async function POST(request: NextRequest) {
     const query = (message || '').trim().toLowerCase();
     const activeCompany = context.companyName || PRIMARY_DEMO_COMPANY.name;
     const activeCin = context.cin || PRIMARY_DEMO_COMPANY.cin;
+
+    // ----------------------------------------------------
+    // CONVERSATIONAL CONFIRMATION HANDLER
+    // ----------------------------------------------------
+    if (
+      query === 'confirm' ||
+      query === 'yes' ||
+      query === 'proceed' ||
+      query === 'approve' ||
+      query === 'directly add' ||
+      query === 'confirm add' ||
+      query.startsWith('confirm add') ||
+      query.includes('directly add them') ||
+      query === 'confirm and directly add'
+    ) {
+      const pendingAction = await ActionService.getLatestPendingAction(activeCin);
+      if (pendingAction && pendingAction.status === 'AWAITING_USER_CONFIRMATION') {
+        if (pendingAction.action_type === 'DIRECTOR_CHANGE' && pendingAction.payload?.change_type === 'APPOINTMENT') {
+          // Confirm action
+          await ActionService.confirmAction(pendingAction.id, pendingAction.confirmation_token || undefined, {
+            workspaceId: context.workspaceId,
+            userId: 'usr_varun_maya',
+            actorType: 'USER',
+            clientName: 'Future MCA Conversational Copilot'
+          });
+
+          // Directly execute (no DSC needed)
+          const execResult = await ActionService.executeAction(pendingAction.id, undefined, {
+            workspaceId: context.workspaceId,
+            userId: 'usr_varun_maya',
+            actorType: 'USER',
+            clientName: 'Future MCA Conversational Copilot'
+          });
+
+          const updatedDirectors = await CompanyService.getCompanyDirectors(activeCin);
+          const candidateName = pendingAction.payload?.director_name || 'New Director';
+          const din = pendingAction.payload?.din || '09847219';
+
+          return NextResponse.json({
+            type: 'action_executed',
+            workflow_type: 'DIRECTOR_APPOINTMENT',
+            action_id: pendingAction.id,
+            text: `### ✅ Director Successfully Added!
+
+**${candidateName}** (DIN: **${din}**) has been directly added to the Board of Directors of **${activeCompany}**.
+
+- **Official Reference SRN:** \`${execResult.reference_number}\`
+- **Filing:** Form DIR-12 recorded with RoC
+- **DSC Authorization:** ⚡ **Bypassed — No DSC authorization required**
+- **Status:** **ACTIVE**
+
+---
+
+#### 🏛️ Current Board of Directors:
+${updatedDirectors.map((d, i) => `${i + 1}. **${d.full_name}** — ${d.designation} (DIN: \`${d.din}\`) | Status: ${d.din_status || 'APPROVED'}`).join('\n')}
+
+All company records and compliance tracking have been updated immediately.`,
+            tools_used: ['confirm_action', 'execute_action', 'add_director', 'get_company_directors']
+          });
+        }
+      }
+    }
+
+    // ----------------------------------------------------
+    // WORKFLOW 3: DIRECT DIRECTOR ADDITION (DIN + DIRECT ADD)
+    // ----------------------------------------------------
+    const isAddDirectorIntent =
+      (query.includes('add') && (query.includes('director') || query.includes('person') || query.includes('din'))) ||
+      query.includes('appoint') ||
+      query.includes('new director') ||
+      query.includes('create din');
+
+    if (isAddDirectorIntent && !query.includes('resig') && !query.includes('remove director')) {
+      // Extract candidate name
+      let candidateName = 'X Person';
+      const rawMatch = 
+        message.match(/add\s+(.+?)\s+as\s+(?:an?\s+)?director/i) ||
+        message.match(/appoint\s+(.+?)\s+as\s+(?:an?\s+)?director/i) ||
+        message.match(/add\s+director\s+([A-Za-z\s]+)/i);
+
+      if (rawMatch && rawMatch[1]) {
+        candidateName = rawMatch[1]
+          .replace(/\b(create din|din number|ask confirmation|confirmation|and directly add|directly add|as an? director|to board|to company)\b.*/i, '')
+          .trim();
+        candidateName = candidateName.replace(/^['"]|['"]$/g, '').trim();
+        if (candidateName.length > 1) {
+          candidateName = candidateName
+            .split(' ')
+            .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(' ');
+        } else {
+          candidateName = 'X Person';
+        }
+      }
+
+      const generatedDin = `09${Math.floor(100000 + Math.random() * 900000)}`;
+
+      const preparedAction = await ActionService.prepareDirectorChange({
+        company_id_or_cin: activeCin,
+        change_type: 'APPOINTMENT',
+        director_name: candidateName,
+        din: generatedDin,
+        effective_date: new Date().toISOString().split('T')[0],
+        reason: 'Strategic board expansion & appointment'
+      }, {
+        workspaceId: context.workspaceId || 'ws_aeos_labs_001',
+        userId: 'usr_varun_maya',
+        actorType: 'AI_CLIENT',
+        clientName: 'Future MCA Conversational Copilot',
+        clientType: 'Anthropic Claude / In-App AI'
+      });
+
+      return NextResponse.json({
+        type: 'action_prepared',
+        workflow_type: 'DIRECTOR_APPOINTMENT',
+        action_id: preparedAction.id,
+        text: `### 📋 Director Appointment Draft Prepared
+
+I have generated a new Director Identification Number (DIN) and prepared the appointment draft for **${activeCompany}**.
+
+- **Director Candidate:** **${candidateName}**
+- **Allocated DIN:** **${generatedDin}** (Status: Allocated / Pre-approved)
+- **Designation:** Director
+- **Filing e-Form:** Form DIR-12 (Appointment of Director)
+- **DSC Authorization:** ⚡ **Not Required (Direct Addition Mode)**
+
+---
+
+#### ❓ **Confirmation Required**
+Would you like me to directly add **${candidateName}** (DIN: **${generatedDin}**) to the Board of Directors?
+
+👉 **Reply "Confirm"** or click the button below to directly add them to the company registry.`,
+        action: {
+          label: `Confirm & Directly Add ${candidateName} (DIN: ${generatedDin})`,
+          url: `/actions/${preparedAction.id}`
+        },
+        action_preview: preparedAction.preview,
+        tools_used: ['generate_din', 'prepare_director_change']
+      });
+    }
 
     // ----------------------------------------------------
     // WORKFLOW 2: DIRECTOR RESIGNATION (PRIMARY DEMO)

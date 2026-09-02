@@ -247,6 +247,7 @@ export class CompanyService {
    */
   static async addDirector(companyId: string, directorData: Partial<Director>): Promise<Director> {
     const newDir: any = {
+      id: `dir_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       company_id: companyId,
       din: directorData.din || `09${Math.floor(100000 + Math.random() * 900000)}`,
       full_name: directorData.full_name || 'New Director',
@@ -254,23 +255,37 @@ export class CompanyService {
       appointment_date: directorData.appointment_date || new Date().toISOString().split('T')[0],
       din_status: directorData.din_status || 'APPROVED',
       dsc_status: directorData.dsc_status || 'ACTIVE',
-      dsc_expiry: directorData.dsc_expiry || '2027-12-31',
+      dsc_expiry: directorData.dsc_expiry || '2028-12-31',
       kyc_status: directorData.kyc_status || 'COMPLIANT',
       email: directorData.email || '',
       phone: directorData.phone || ''
     };
 
-    const { data, error } = await supabase
-      .from('directors')
-      .insert(newDir)
-      .select()
-      .single();
-
-    if (error || !data) {
-      throw new Error(`Failed to add director: ${error?.message || 'Database error'}`);
+    // Keep in-memory store in sync so changes immediately reflect everywhere
+    const existingIndex = PRIMARY_DEMO_DIRECTORS.findIndex(
+      d => d.din === newDir.din || d.full_name.toLowerCase() === newDir.full_name.toLowerCase()
+    );
+    if (existingIndex >= 0) {
+      PRIMARY_DEMO_DIRECTORS[existingIndex] = { ...PRIMARY_DEMO_DIRECTORS[existingIndex], ...newDir };
+    } else {
+      PRIMARY_DEMO_DIRECTORS.push(newDir);
     }
 
-    return data as Director;
+    try {
+      const { data, error } = await supabase
+        .from('directors')
+        .insert(newDir)
+        .select()
+        .single();
+
+      if (!error && data) {
+        return data as Director;
+      }
+    } catch {
+      // Local/offline demo fallback
+    }
+
+    return newDir as Director;
   }
 
   /**

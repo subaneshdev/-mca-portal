@@ -115,59 +115,6 @@ function LoginForm() {
     }
   };
 
-  const handleQuickDemoLogin = async (persona: 'founder' | 'professional') => {
-    setLoading(true);
-    setErrorMsg('');
-    setSuccessMsg('');
-
-    const demoEmail = persona === 'founder' ? 'founder@demo.futuremca.in' : 'ca@demo.futuremca.in';
-    const demoPassword = 'Password123!';
-    const demoName = persona === 'founder' ? 'Demo Founder' : 'Demo CA/CS Practice';
-
-    const localUser = { id: `usr-${persona}-demo`, email: demoEmail };
-    const localProfile: UserProfile = {
-      id: `usr-${persona}-demo`,
-      email: demoEmail,
-      full_name: demoName,
-      persona
-    };
-
-    // Synchronously bind session
-    setUserSession(localUser, localProfile);
-
-    try {
-      let { data, error } = await supabase.auth.signInWithPassword({
-        email: demoEmail,
-        password: demoPassword
-      });
-
-      if (error) {
-        await supabase.auth.signUp({
-          email: demoEmail,
-          password: demoPassword,
-          options: {
-            data: {
-              full_name: demoName,
-              persona
-            }
-          }
-        });
-        
-        await supabase.auth.signInWithPassword({
-          email: demoEmail,
-          password: demoPassword
-        });
-      }
-
-      await refreshCompanies();
-      navigateAfterAuth(persona);
-    } catch (err: any) {
-      navigateAfterAuth(persona);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#F7F7F5] flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
       
@@ -256,38 +203,7 @@ function LoginForm() {
             </button>
           </form>
 
-          {/* Quick Demo Test Logins */}
-          <div className="pt-4 border-t border-[#E5E5E5] space-y-2.5">
-            <div className="text-[10px] uppercase font-mono tracking-wider text-[#737373] text-center">
-              1-Click Verified Workspace Login
-            </div>
-            
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('founder')}
-                className="p-2.5 rounded-lg border border-[#E5E5E5] hover:border-[#0066CC] hover:bg-[#EFF6FF] text-left transition-all group cursor-pointer"
-              >
-                <div className="flex items-center space-x-1.5 text-xs font-bold text-black group-hover:text-[#0066CC]">
-                  <Building2 className="w-3.5 h-3.5 text-[#0066CC]" />
-                  <span>Founder Mode</span>
-                </div>
-                <div className="text-[10px] text-[#737373] mt-0.5 truncate">founder@demo.futuremca.in</div>
-              </button>
 
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('professional')}
-                className="p-2.5 rounded-lg border border-[#E5E5E5] hover:border-[#0B2545] hover:bg-[#F1F5F9] text-left transition-all group cursor-pointer"
-              >
-                <div className="flex items-center space-x-1.5 text-xs font-bold text-black group-hover:text-[#0B2545]">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#0B2545]" />
-                  <span>CA / CS Mode</span>
-                </div>
-                <div className="text-[10px] text-[#737373] mt-0.5 truncate">ca@demo.futuremca.in</div>
-              </button>
-            </div>
-          </div>
 
           <div className="text-center text-xs text-[#525252]">
             Don't have an account?{' '}

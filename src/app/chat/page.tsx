@@ -38,6 +38,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { PRIMARY_DEMO_COMPANY, PRIMARY_DEMO_DIRECTORS } from '@/lib/services/seedService';
+import { CompanyService } from '@/lib/services/companyService';
 
 interface ChatMessage {
   id: string;
@@ -53,7 +54,7 @@ interface ChatMessage {
   tools_used?: string[];
 }
 
-function ChatContent() {
+export function ChatContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { 
@@ -73,11 +74,21 @@ function ChatContent() {
   const [isTyping, setIsTyping] = useState(false);
   const [hasStartedChat, setHasStartedChat] = useState(false);
   const [activeConversation, setActiveConversation] = useState<string>('conv-1');
+  const [directorsList, setDirectorsList] = useState<any[]>(PRIMARY_DEMO_DIRECTORS);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const activeCompany = selectedCompany || PRIMARY_DEMO_COMPANY;
   const founderName = profile?.full_name || 'Varun Maya';
+
+  // Live fetch board of directors
+  useEffect(() => {
+    CompanyService.getCompanyDirectors(activeCompany.cin || 'comp_aeos_001').then(dirs => {
+      if (dirs && dirs.length > 0) {
+        setDirectorsList(dirs);
+      }
+    });
+  }, [activeCompany, messages]);
 
   // Seed default recent conversations
   const conversations = [
@@ -249,18 +260,15 @@ function ChatContent() {
           </div>
         </div>
 
-        {/* User & Mode Switcher */}
+        {/* Founder AI Mode Badge */}
         <div className="space-y-2 pt-3 border-t border-neutral-200/80">
-          <Link
-            href="/overview"
-            className="w-full p-2 bg-neutral-100 hover:bg-neutral-200/80 border border-neutral-200 rounded-xl text-xs font-bold text-neutral-800 flex items-center justify-between transition-all"
-          >
+          <div className="w-full p-2 bg-neutral-100 border border-neutral-200/80 rounded-xl text-xs text-neutral-700 flex items-center justify-between">
             <span className="flex items-center space-x-2">
-              <Briefcase className="w-3.5 h-3.5 text-neutral-600" />
-              <span>Switch to CA Dashboard</span>
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span className="font-semibold text-[11px]">Founder AI Mode</span>
             </span>
-            <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />
-          </Link>
+            <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">Active</span>
+          </div>
 
           <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-neutral-200 shadow-xs">
             <div className="flex items-center space-x-2 truncate">
@@ -302,12 +310,6 @@ function ChatContent() {
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
               <span>Actions & Approvals</span>
             </Link>
-            <Link
-              href="/demo"
-              className="text-xs font-bold text-neutral-900 bg-neutral-900 hover:bg-black text-white px-3 py-1.5 rounded-lg transition-all shadow-xs"
-            >
-              Protocol Simulator &rarr;
-            </Link>
           </div>
         </header>
 
@@ -331,6 +333,19 @@ function ChatContent() {
 
               {/* Quick Action Suggestion Chips */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left pt-4">
+                <button
+                  onClick={() => handleSendMessage('Add X person as an director create din number ask confirmation and directly add')}
+                  className="p-3.5 bg-white hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-400 rounded-xl transition-all shadow-xs group"
+                >
+                  <div className="text-xs font-bold text-neutral-900 flex items-center justify-between">
+                    <span>&ldquo;Add X person as Director&rdquo;</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-neutral-400 group-hover:text-neutral-900 transition-transform group-hover:translate-x-0.5" />
+                  </div>
+                  <div className="text-[11px] text-neutral-500 mt-1">
+                    Auto-generate DIN, ask confirmation, and directly add (no DSC needed)
+                  </div>
+                </button>
+
                 <button
                   onClick={() => handleSendMessage('My director resigned.')}
                   className="p-3.5 bg-white hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-400 rounded-xl transition-all shadow-xs group"
@@ -367,19 +382,6 @@ function ChatContent() {
                   </div>
                   <div className="text-[11px] text-neutral-500 mt-1">
                     Check DIR-12, AOC-4, and MGT-7 cutoffs & penalty exposure
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => handleSendMessage('What is my compliance status?')}
-                  className="p-3.5 bg-white hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-400 rounded-xl transition-all shadow-xs group"
-                >
-                  <div className="text-xs font-bold text-neutral-900 flex items-center justify-between">
-                    <span>&ldquo;What is my compliance status?&rdquo;</span>
-                    <ArrowRight className="w-3.5 h-3.5 text-neutral-400 group-hover:text-neutral-900 transition-transform group-hover:translate-x-0.5" />
-                  </div>
-                  <div className="text-[11px] text-neutral-500 mt-1">
-                    Audit directors, active DINs, and RoC filings for Aeos Labs
                   </div>
                 </button>
               </div>
@@ -559,28 +561,38 @@ function ChatContent() {
           {/* Board of Directors */}
           <div className="space-y-2">
             <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-              Board of Directors (2)
+              Board of Directors ({directorsList.length})
             </div>
             <div className="space-y-2">
-              <div className="p-2.5 bg-white border border-neutral-200 rounded-xl space-y-0.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-neutral-900">Varun Maya</span>
-                  <span className="text-[9px] font-mono font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">
-                    Active MD
-                  </span>
-                </div>
-                <div className="text-[10px] text-neutral-500 font-mono">DIN: 08945120 | DSC Active</div>
-              </div>
-
-              <div className="p-2.5 bg-white border border-amber-300 rounded-xl space-y-0.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-neutral-900">Rahul Menon</span>
-                  <span className="text-[9px] font-mono font-bold bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded">
-                    Resigned
-                  </span>
-                </div>
-                <div className="text-[10px] text-neutral-500 font-mono">DIN: 09124589 | Resigned 25 Aug</div>
-              </div>
+              {directorsList.map((d: any, idx: number) => {
+                const isResigned = d.status === 'RESIGNED';
+                return (
+                  <div 
+                    key={d.din || idx} 
+                    className={cn(
+                      "p-2.5 bg-white border rounded-xl space-y-0.5",
+                      isResigned ? "border-amber-300" : "border-neutral-200"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-neutral-900">{d.full_name}</span>
+                      <span className={cn(
+                        "text-[9px] font-mono font-bold px-1.5 py-0.5 rounded",
+                        isResigned 
+                          ? "bg-amber-100 text-amber-800" 
+                          : d.designation?.includes('Managing') 
+                          ? "bg-emerald-100 text-emerald-800" 
+                          : "bg-blue-100 text-blue-800"
+                      )}>
+                        {isResigned ? 'Resigned' : d.designation || 'Director'}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-neutral-500 font-mono">
+                      DIN: {d.din} | {isResigned ? 'Cessation Filed' : 'Active'}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

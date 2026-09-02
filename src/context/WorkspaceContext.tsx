@@ -33,7 +33,7 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
-  // Synchronously initialize from localStorage to prevent auth race conditions
+  // Synchronously initialize from localStorage or default to Founder
   const [user, setUser] = useState<any | null>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('future_mca_user');
@@ -41,7 +41,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         try { return JSON.parse(stored); } catch { return null; }
       }
     }
-    return null;
+    return { id: 'usr_varun_maya', email: 'varun@aeoslabs.in' };
   });
 
   const [profile, setProfile] = useState<UserProfile | null>(() => {
@@ -51,7 +51,12 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         try { return JSON.parse(stored); } catch { return null; }
       }
     }
-    return null;
+    return {
+      id: 'usr_varun_maya',
+      email: 'varun@aeoslabs.in',
+      full_name: 'Varun Maya',
+      persona: 'founder'
+    };
   });
 
   const [role, setRoleState] = useState<WorkspaceRole>(() => {
@@ -116,16 +121,15 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      setUser(activeUser);
-
       if (!activeUser) {
-        setProfile(null);
-        setWorkspaces([]);
-        setCurrentWorkspace(null);
-        setAllCompanies([]);
-        setSelectedCompanyState(null);
-        return;
+        activeUser = {
+          id: 'usr_varun_maya',
+          email: 'varun@aeoslabs.in',
+          user_metadata: { full_name: 'Varun Maya', persona: 'founder' }
+        };
       }
+
+      setUser(activeUser);
 
       // 2. Build profile from authentic session
       const localRole = (typeof window !== 'undefined' ? localStorage.getItem('future_mca_role') : null) as WorkspaceRole || 'founder';

@@ -128,6 +128,32 @@ export class ActionService {
   }
 
   /**
+   * Get the most recently prepared action awaiting confirmation
+   */
+  static async getLatestPendingAction(companyIdOrCin?: string): Promise<McpAction | null> {
+    const memoryActions = Array.from(ACTION_STORE.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    const pending = memoryActions.filter(a =>
+      a.status === 'AWAITING_USER_CONFIRMATION' ||
+      a.status === 'CONFIRMED' ||
+      a.status === 'AUTHORIZATION_REQUIRED'
+    );
+
+    if (companyIdOrCin) {
+      const matched = pending.find(a =>
+        a.company_id === companyIdOrCin ||
+        a.payload?.company_cin === companyIdOrCin ||
+        (a.company_name && a.company_name.toLowerCase().includes(companyIdOrCin.toLowerCase()))
+      );
+      if (matched) return matched;
+    }
+
+    return pending[0] || null;
+  }
+
+  /**
    * Get an action by its ID
    */
   static async getAction(actionId: string): Promise<McpAction | null> {
@@ -267,6 +293,10 @@ export class ActionService {
       ? 'Section 168 of Companies Act 2013 read with Rule 15 of Companies (Appointment and Qualification of Directors) Rules'
       : 'Section 152 / 161 of Companies Act 2013 read with Rule 18';
 
+    // Auto-generate a valid 8-digit DIN for appointments if not provided
+    const dinNumber = payload.din || (isResignation ? '09124589' : `09${Math.floor(100000 + Math.random() * 900000)}`);
+    payload.din = dinNumber;
+
     // Calculate deadline: 30 days from effective date
     const effDate = new Date(payload.effective_date || Date.now());
     const deadlineDate = new Date(effDate.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -278,37 +308,45 @@ export class ActionService {
       'Proof of dispatch / receipt of resignation notice'
     ] : [
       'Consent to Act as Director in Form DIR-2',
-      'Certified True Copy of Board / AGM Resolution for appointment',
-      'Self-attested PAN and Residential Proof of the appointee'
+      'Board Resolution approving appointment',
+      'PAN / Identity verification proof'
     ];
+
+    // For direct appointments, DSC authorization is NOT required
+    const isAuthRequired = isResignation;
 
     const preview: ActionPreview = {
       form_code: formCode,
       action_summary: isResignation 
-        ? `Submit Form DIR-12 for cessation of Director ${payload.director_name} (DIN: ${payload.din || 'Provided on Record'})`
-        : `Submit Form DIR-12 for appointment of Director ${payload.director_name}`,
+        ? `Submit Form DIR-12 for cessation of Director ${payload.director_name} (DIN: ${dinNumber})`
+        : `Directly add ${payload.director_name} as Director (DIN: ${dinNumber})`,
       company_name: company?.name || 'Your Company',
       cin: company?.cin,
       statutory_section: statutorySection,
       deadline: `${deadlineStr} (Strict 30 days statutory window)`,
       required_documents: requiredDocs,
       missing_requirements: [],
-      prerequisites: [
+      prerequisites: isResignation ? [
         'Director Identification Number (DIN) must be in APPROVED active status',
         'Signing Director / Company Secretary must have active Class 3 DSC mapped on MCA V3'
+      ] : [
+        `DIN ${dinNumber} generated and pre-allocated for ${payload.director_name}`,
+        'Direct Addition Mode: No DSC token authorization required upon user confirmation'
       ],
       form_fields: {
         company_cin: company?.cin,
         company_name: company?.name,
         director_name: payload.director_name,
-        din: payload.din || '08947219',
+        din: dinNumber,
         change_category: payload.change_type,
         effective_date: payload.effective_date,
         reason: payload.reason || (isResignation ? 'Personal commitments' : 'Strategic board expansion')
       },
       estimated_fee: 300,
       estimated_penalty_per_day: 100,
-      notice: 'DEMO EXECUTION MODE: Prepares standard e-Form DIR-12 schema with statutory compliance safeguards.'
+      notice: isResignation
+        ? 'DEMO EXECUTION MODE: Prepares standard e-Form DIR-12 schema with statutory compliance safeguards.'
+        : `DIRECT ADDITION MODE: DIN ${dinNumber} allocated. Directly adds to company records upon confirmation (no DSC authorization required).`
     };
 
     const action: McpAction = {
@@ -319,13 +357,13 @@ export class ActionService {
       user_id: context.userId || null,
       action_type: 'DIRECTOR_CHANGE',
       status: 'AWAITING_USER_CONFIRMATION',
-      payload: { ...payload, company_cin: company?.cin, company_name: company?.name },
+      payload: { ...payload, din: dinNumber, company_cin: company?.cin, company_name: company?.name },
       preview,
       confirmation_token: token,
       confirmation_expires_at: expiresAt,
-      authorization_required: true,
-      authorization_type: 'DSC_SIGNATURE',
-      authorization_status: 'PENDING',
+      authorization_required: isAuthRequired,
+      authorization_type: isAuthRequired ? 'DSC_SIGNATURE' : undefined,
+      authorization_status: isAuthRequired ? 'PENDING' : 'NOT_REQUIRED',
       client_metadata: {
         client_name: context.clientName || 'Claude',
         client_type: context.clientType || 'mcp',
@@ -838,19 +876,38 @@ export class ActionService {
 
     await this.persistAction(action);
 
-    // 4. Update director status if this was a director resignation
+    // 4. Update director status if this was a director appointment or resignation
     try {
       if (action.action_type === 'DIRECTOR_CHANGE') {
+        const changeType = action.payload?.change_type || 'RESIGNATION';
         const din = action.payload?.din || '09124589';
-        await supabase
-          .from('directors')
-          .update({ status: 'RESIGNED', din_status: 'CESSATION_FILED' })
-          .eq('din', din);
 
-        await supabase
-          .from('compliance_deadlines')
-          .update({ status: 'FILED', urgency: 'completed' })
-          .eq('form_code', 'DIR-12');
+        if (changeType === 'APPOINTMENT') {
+          const companyId = action.company_id || 'comp_aeos_001';
+          await CompanyService.addDirector(companyId, {
+            full_name: action.payload?.director_name || 'New Director',
+            din: din,
+            designation: 'Director',
+            appointment_date: action.payload?.effective_date || new Date().toISOString().split('T')[0],
+            din_status: 'APPROVED',
+            dsc_status: 'ACTIVE',
+            kyc_status: 'COMPLIANT'
+          });
+
+          receipt.confirmation_message = `Successfully appointed ${action.payload?.director_name || 'New Director'} (DIN: ${din}) as Director of ${action.company_name}. Direct addition completed without requiring DSC authorization.`;
+          action.execution_receipt = receipt;
+          await this.persistAction(action);
+        } else {
+          await supabase
+            .from('directors')
+            .update({ status: 'RESIGNED', din_status: 'CESSATION_FILED' })
+            .eq('din', din);
+
+          await supabase
+            .from('compliance_deadlines')
+            .update({ status: 'FILED', urgency: 'completed' })
+            .eq('form_code', 'DIR-12');
+        }
       }
     } catch {
       // offline fallback

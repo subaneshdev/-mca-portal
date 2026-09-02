@@ -290,10 +290,12 @@ export default function ActionDetailPage() {
                     ? 'bg-blue-50 border-blue-200 text-blue-800'
                     : action.status === 'AUTHORIZATION_REQUIRED'
                     ? 'bg-purple-50 border-purple-300 text-purple-800 ring-2 ring-purple-400/30 font-bold animate-pulse'
+                    : !action.authorization_required
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                     : 'bg-slate-50 border-slate-200 text-slate-400'
                 }`}>
-                  <div className="text-[10px] uppercase text-purple-600 font-mono">Step 3</div>
-                  <div>DSC Authorized</div>
+                  <div className={`text-[10px] uppercase font-mono ${!action.authorization_required ? 'text-emerald-600' : 'text-purple-600'}`}>Step 3</div>
+                  <div>{!action.authorization_required ? 'Direct (No DSC)' : 'DSC Authorized'}</div>
                 </div>
 
                 <div className={`p-3 rounded-xl border ${
@@ -365,7 +367,9 @@ export default function ActionDetailPage() {
                         Explicit User Confirmation Required
                       </h4>
                       <p className="text-xs text-amber-800 mt-1">
-                        An AI agent prepared this action draft. Under the Future MCA zero silent execution policy, you must explicitly confirm the draft before digital signing or submission.
+                        {!action.authorization_required
+                          ? 'This director addition draft has been prepared with an auto-generated DIN. Under the zero silent execution policy, please confirm to directly add the director.'
+                          : 'An AI agent prepared this action draft. Under the Future MCA zero silent execution policy, you must explicitly confirm the draft before digital signing or submission.'}
                       </p>
                     </div>
                   </div>
@@ -377,7 +381,7 @@ export default function ActionDetailPage() {
                       className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 shadow-sm transition-all"
                     >
                       <CheckCircle2 className="w-4 h-4" />
-                      {confirming ? 'Confirming Action...' : 'Confirm & Proceed to Authorization'}
+                      {confirming ? 'Confirming Action...' : !action.authorization_required ? 'Confirm & Directly Execute' : 'Confirm & Proceed to Authorization'}
                     </button>
                     <button
                       onClick={handleCancel}
@@ -468,10 +472,12 @@ export default function ActionDetailPage() {
                     <ShieldCheck className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                     <div>
                       <h4 className="text-sm font-bold text-blue-950">
-                        Action Authorized & Ready for Final Execution
+                        {!action.authorization_required ? 'Draft Confirmed — Ready to Directly Add Director' : 'Action Authorized & Ready for Final Execution'}
                       </h4>
                       <p className="text-xs text-blue-800 mt-1">
-                        All statutory prerequisites, user confirmation, and DSC token signatures are verified. You can execute submission now directly or ask your AI agent to call <code className="font-mono bg-blue-100 px-1 py-0.5 rounded">execute_action</code>.
+                        {!action.authorization_required
+                          ? 'DIN has been generated and pre-allocated. No DSC authorization is required. Click below to directly add the director to the company records.'
+                          : 'All statutory prerequisites, user confirmation, and DSC token signatures are verified. You can execute submission now directly or ask your AI agent to call execute_action.'}
                       </p>
                     </div>
                   </div>
@@ -483,7 +489,7 @@ export default function ActionDetailPage() {
                       className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all"
                     >
                       <Send className="w-4 h-4" />
-                      {executing ? 'Processing Submission...' : 'Submit & Execute Action Now'}
+                      {executing ? 'Processing Submission...' : !action.authorization_required ? 'Directly Add Director to Company Now' : 'Submit & Execute Action Now'}
                     </button>
                   </div>
                 </div>
