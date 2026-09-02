@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { ActionService } from '@/lib/services/actionService';
 import { McpAction } from '@/types/actions';
+import { PRIMARY_DEMO_COMPANY } from '@/lib/services/seedService';
 
 export default function DemoPage() {
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -35,23 +36,25 @@ export default function DemoPage() {
     setTimeout(() => {
       setLoadingStep(false);
       setCurrentStep(2);
-    }, 600);
+    }, 500);
   };
 
-  // Step 2: Prepare Action
+  // Step 2: Prepare Action (Rahul Menon Resignation)
   const runStep2Prepare = async () => {
     setLoadingStep(true);
     try {
       const act = await ActionService.prepareDirectorChange({
-        company_id_or_cin: 'U72900KA2022PTC158942',
+        company_id_or_cin: PRIMARY_DEMO_COMPANY.cin,
         change_type: 'RESIGNATION',
-        director_name: 'Ananya Sharma',
-        din: '08947219',
-        effective_date: new Date().toISOString().split('T')[0],
-        reason: 'Personal commitments and advisory focus'
+        director_name: 'Rahul Menon',
+        din: '09124589',
+        effective_date: '2026-08-25',
+        reason: 'Personal reasons'
       }, {
+        workspaceId: PRIMARY_DEMO_COMPANY.workspace_id || undefined,
+        userId: 'usr_varun_maya',
         actorType: 'AI_CLIENT',
-        clientName: 'Claude Desktop',
+        clientName: 'Claude Desktop / Code',
         clientType: 'Anthropic Claude'
       });
       setAction(act);
@@ -70,7 +73,7 @@ export default function DemoPage() {
     try {
       const res = await ActionService.confirmAction(action.id, action.confirmation_token || undefined, {
         actorType: 'USER',
-        clientName: 'Claude Chat Interaction'
+        clientName: 'Varun Maya (Claude User Confirmation)'
       });
       setAction(res.action);
       setCurrentStep(4);
@@ -87,10 +90,10 @@ export default function DemoPage() {
     setLoadingStep(true);
     try {
       const updated = await ActionService.authorizeAction(action.id, {
-        signed_by: 'Subanesh R (Managing Director)',
-        din: '08947219',
+        signed_by: 'Varun Maya (Managing Director)',
+        din: '08945120',
         dsc_serial: 'SHA256-EMUDHRA-IND-84920482',
-        remarks: 'Digitally authenticated in secure browser token sandbox'
+        remarks: 'Digitally authenticated in browser token sandbox'
       });
       setAction(updated);
       setCurrentStep(5);
@@ -101,17 +104,14 @@ export default function DemoPage() {
     }
   };
 
-  // Step 5: Execute Action
+  // Step 5: Execute Action (SRN generation)
   const runStep5Execute = async () => {
     if (!action) return;
     setLoadingStep(true);
     try {
-      const exec = await ActionService.executeAction(action.id, undefined, {
-        actorType: 'AI_CLIENT',
-        clientName: 'Claude Desktop'
-      });
-      setAction(exec.action);
-      setSrnResult(exec.reference_number);
+      const res = await ActionService.executeAction(action.id, `demo_idemp_${Date.now()}`);
+      setAction(res.action);
+      setSrnResult(res.reference_number);
       setCurrentStep(6);
     } catch (err: any) {
       alert(err.message);
@@ -120,347 +120,325 @@ export default function DemoPage() {
     }
   };
 
-  const resetDemo = () => {
-    setCurrentStep(1);
+  const resetSimulator = () => {
     setAction(null);
+    setCurrentStep(1);
     setSrnResult(null);
   };
 
   return (
-    <div className="min-h-screen bg-[#0F172A] text-slate-100 pb-16 font-sans">
-      {/* Top Banner */}
-      <div className="border-b border-slate-800 bg-[#1E293B]/60 backdrop-blur-md px-6 py-4 sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30">
-              <Sparkles className="w-5 h-5" />
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans p-6 md:p-10">
+      <div className="max-w-6xl mx-auto space-y-8">
+        
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                MCP POST-ACTION PROTOCOL v2
+              </span>
+              <span className="text-xs text-slate-400">• Interactive End-to-End Simulation</span>
             </div>
-            <div>
-              <h1 className="text-sm sm:text-base font-bold text-white">
-                Interactive Post-Action Protocol Simulator
-              </h1>
-              <p className="text-xs text-slate-400">
-                Witness how Claude Desktop securely prepares, validates, and executes corporate actions.
-              </p>
-            </div>
+            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white mt-2">
+              Future MCA Action Protocol Simulator
+            </h1>
+            <p className="text-sm text-slate-400 mt-1">
+              Demonstrating the 7-step lifecycle for <strong>Aeos Labs Private Limited</strong> &rarr; <strong>Director Resignation (Rahul Menon)</strong>.
+            </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <button
-              onClick={resetDemo}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all"
+              onClick={resetSimulator}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Reset Demo
+              <RefreshCw className="w-3.5 h-3.5" /> Reset Simulator
             </button>
             <Link
-              href="/actions"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all"
+              href="/chat"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-white text-slate-950 hover:bg-slate-200 transition-colors shadow-sm"
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-blue-200" />
-              Live Actions Queue
+              Open Live Founder Chat &rarr;
             </Link>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
-
-        {/* Stepper Header */}
-        <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+        {/* 6-Step Visual Timeline */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
           {[
-            { num: 1, label: '1. Event Trigger' },
-            { num: 2, label: '2. MCP Identify' },
-            { num: 3, label: '3. Prepare Draft' },
-            { num: 4, label: '4. User Confirm' },
-            { num: 5, label: '5. DSC Sign' },
-            { num: 6, label: '6. SRN Receipt' }
-          ].map((st) => (
+            { num: 1, name: '1. Read Context', desc: 'Fetch entity & directors' },
+            { num: 2, name: '2. Prepare Draft', desc: 'Validate & draft DIR-12' },
+            { num: 3, name: '3. Preview & Review', desc: 'Zero silent mutations' },
+            { num: 4, name: '4. Explicit Confirm', desc: 'Advance state machine' },
+            { num: 5, name: '5. DSC Sandbox', desc: 'Browser-isolated PIN' },
+            { num: 6, name: '6. Execute & SRN', desc: 'Immutable submission' },
+          ].map((s) => (
             <div
-              key={st.num}
-              className={`p-3 rounded-xl border text-center text-xs font-semibold transition-all ${
-                currentStep === st.num
-                  ? 'bg-blue-600/30 border-blue-500 text-white shadow-lg ring-2 ring-blue-500/20'
-                  : currentStep > st.num
-                  ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-400'
-                  : 'bg-slate-900/60 border-slate-800 text-slate-500'
+              key={s.num}
+              className={`p-3 rounded-xl border text-left transition-all ${
+                currentStep === s.num
+                  ? 'bg-blue-600/20 border-blue-500 text-blue-200 shadow-md ring-1 ring-blue-500'
+                  : currentStep > s.num
+                  ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300'
+                  : 'bg-slate-900 border-slate-800 text-slate-500'
               }`}
             >
-              <div>{st.label}</div>
+              <div className="text-[10px] font-mono font-bold">{s.name}</div>
+              <div className="text-[11px] truncate mt-0.5">{s.desc}</div>
             </div>
           ))}
         </div>
 
-        {/* Split Screen Simulator: Claude / AI Agent (Left) & Future MCA Server Engine (Right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-          {/* LEFT: AI Agent Interface (Claude Simulation) */}
-          <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden flex flex-col h-[580px]">
-            <div className="px-4 py-3 bg-slate-800/80 border-b border-slate-700/80 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Bot className="w-4 h-4 text-purple-400" />
-                <span className="text-xs font-bold text-slate-200">Claude Desktop Agent (MCP Client)</span>
+        {/* Split Screen Simulator UI */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* LEFT: AI Client Interface (Claude Desktop / Cursor View) */}
+          <div className="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-orange-600/20 border border-orange-500/30 flex items-center justify-center text-orange-400">
+                    <Bot className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-white">AI Agent Interface</h3>
+                    <div className="text-[10px] font-mono text-slate-400">Claude Desktop / Cursor MCP Client</div>
+                  </div>
+                </div>
+                <span className="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-300">
+                  Tool: JSON-RPC 2.0
+                </span>
               </div>
-              <span className="text-[10px] font-mono text-purple-300 bg-purple-900/40 px-2 py-0.5 rounded border border-purple-700/50">
-                Connected: Future MCA MCP
-              </span>
+
+              {/* Chat Simulation Transcript */}
+              <div className="space-y-3 font-mono text-xs">
+                {/* User message */}
+                <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 text-slate-200 space-y-1">
+                  <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                    <User className="w-3 h-3 text-blue-400" /> Varun Maya (Founder)
+                  </div>
+                  <div>&ldquo;My director Rahul Menon resigned yesterday. What should I do for Aeos Labs?&rdquo;</div>
+                </div>
+
+                {/* AI response Step 1 */}
+                {currentStep >= 2 && (
+                  <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 space-y-2">
+                    <div className="text-[10px] text-orange-400 flex items-center gap-1">
+                      <Bot className="w-3 h-3" /> Claude Assistant (calling MCP tools)
+                    </div>
+                    <div className="text-[11px] text-slate-300 leading-relaxed font-sans">
+                      Under Section 168 of Companies Act 2013, director cessation requires <strong>Form DIR-12</strong> within 30 days.
+                    </div>
+                    <div className="p-2 rounded bg-slate-900 border border-slate-800 text-[10px] text-blue-400 font-mono">
+                      &rarr; call_tool(&ldquo;prepare_director_change&rdquo;, director=&ldquo;Rahul Menon&rdquo;, din=&ldquo;09124589&rdquo;)
+                    </div>
+                  </div>
+                )}
+
+                {/* AI response Step 2 & 3 */}
+                {currentStep >= 3 && action && (
+                  <div className="p-3.5 rounded-xl bg-slate-950 border border-amber-500/40 text-amber-200 space-y-2">
+                    <div className="flex items-center justify-between text-[10px] font-bold text-amber-400">
+                      <span>Action Draft Prepared (act_dir_demo_001)</span>
+                      <span>Awaiting Confirmation</span>
+                    </div>
+                    <div className="text-[11px] text-slate-300 font-sans">
+                      &ldquo;I have prepared the Form DIR-12 draft for Director Rahul Menon with 30-day statutory deadline (24 September 2026). This action has <strong>NOT</strong> been executed yet. Do you want to confirm?&rdquo;
+                    </div>
+                  </div>
+                )}
+
+                {/* AI response Step 4 */}
+                {currentStep >= 4 && (
+                  <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 text-slate-200">
+                    <div className="text-[10px] text-slate-400">Varun Maya:</div>
+                    <div>&ldquo;Yes, confirm this action.&rdquo; &rarr; <code>confirm_action(act_dir_demo_001)</code></div>
+                  </div>
+                )}
+
+                {/* AI response Step 5 & 6 */}
+                {currentStep >= 5 && (
+                  <div className="p-3 rounded-xl bg-purple-950/30 border border-purple-500/40 text-purple-200 space-y-1 font-sans text-[11px]">
+                    <div className="font-bold text-purple-400 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5" /> Isolated Authorization Required
+                    </div>
+                    <div>AI cannot receive private keys or DSC PIN. Directing user to browser authorization page.</div>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="p-4 flex-1 overflow-y-auto space-y-4 text-xs">
-              
-              {/* Message 1: User Prompt */}
-              <div className="flex gap-2.5 justify-end">
-                <div className="bg-blue-600 text-white p-3.5 rounded-2xl rounded-tr-xs max-w-sm">
-                  My director Ananya Sharma resigned yesterday. What should I do for Future Labs Pvt Ltd?
-                </div>
-                <div className="w-6 h-6 rounded-full bg-blue-700 text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0">
-                  U
-                </div>
-              </div>
+            {/* Action Trigger Buttons */}
+            <div className="pt-4 border-t border-slate-800 space-y-2">
+              {currentStep === 1 && (
+                <button
+                  onClick={runStep1Identify}
+                  disabled={loadingStep}
+                  className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 flex items-center justify-center gap-2 transition-all"
+                >
+                  <Play className="w-4 h-4" /> Trigger: &ldquo;My director resigned&rdquo;
+                </button>
+              )}
 
-              {/* Message 2: Claude Identify */}
-              {currentStep >= 2 && (
-                <div className="flex gap-2.5 justify-start animate-in fade-in">
-                  <div className="w-6 h-6 rounded-full bg-purple-900 text-purple-300 flex items-center justify-center font-bold text-[10px] flex-shrink-0 border border-purple-700">
-                    <Bot className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="bg-slate-800 border border-slate-700 text-slate-200 p-3.5 rounded-2xl rounded-tl-xs space-y-2 max-w-md">
-                    <div className="text-[11px] text-purple-400 font-mono">
-                      ⚙️ Calling Tool: <code className="bg-slate-900 px-1 py-0.5 rounded">identify_required_filing</code>
-                    </div>
-                    <p>
-                      Under <strong>Section 168 of the Companies Act 2013</strong>, director cessation requires filing <strong>Form DIR-12</strong> with the Registrar of Companies (RoC) within <strong>30 days</strong>.
-                    </p>
-                    <p>
-                      Would you like me to prepare the DIR-12 action draft envelope for Future Labs Private Limited?
-                    </p>
-                  </div>
+              {currentStep === 2 && (
+                <button
+                  onClick={runStep2Prepare}
+                  disabled={loadingStep}
+                  className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 flex items-center justify-center gap-2 transition-all"
+                >
+                  <Play className="w-4 h-4" /> Call Level 2 Tool: prepare_director_change()
+                </button>
+              )}
+
+              {currentStep === 3 && (
+                <button
+                  onClick={runStep3Confirm}
+                  disabled={loadingStep}
+                  className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 flex items-center justify-center gap-2 transition-all"
+                >
+                  <CheckCircle2 className="w-4 h-4" /> User Confirms: confirm_action()
+                </button>
+              )}
+
+              {currentStep >= 4 && currentStep < 6 && (
+                <div className="text-center text-xs text-slate-400 py-1 font-mono">
+                  State Machine Advanced &rarr; Complete browser signing on right panel
                 </div>
               )}
 
-              {/* Message 3: Prepare Draft Output */}
-              {currentStep >= 3 && action && (
-                <div className="flex gap-2.5 justify-start animate-in fade-in">
-                  <div className="w-6 h-6 rounded-full bg-purple-900 text-purple-300 flex items-center justify-center font-bold text-[10px] flex-shrink-0 border border-purple-700">
-                    <Bot className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="bg-slate-800 border border-slate-700 text-slate-200 p-4 rounded-2xl rounded-tl-xs space-y-3 max-w-md">
-                    <div className="text-[11px] text-purple-400 font-mono">
-                      ⚙️ Calling Tool: <code className="bg-slate-900 px-1 py-0.5 rounded">prepare_director_change</code>
-                    </div>
-
-                    {/* Claude Preview Card */}
-                    <div className="p-3.5 bg-slate-900/90 rounded-xl border border-amber-500/40 space-y-2 text-xs">
-                      <div className="flex items-center justify-between text-amber-400 font-bold">
-                        <span>READY FOR REVIEW (Action Draft)</span>
-                        <span className="font-mono text-[10px] bg-amber-500/20 px-2 py-0.5 rounded">DIR-12</span>
-                      </div>
-                      <div className="text-[11px] space-y-1 text-slate-300">
-                        <div><strong>Target Company:</strong> Future Labs Private Limited</div>
-                        <div><strong>Director:</strong> Ananya Sharma (DIN: 08947219)</div>
-                        <div><strong>Deadline:</strong> Within 30 days of cessation</div>
-                        <div><strong>Required Attachments:</strong> Resignation Letter, Board Resolution</div>
-                      </div>
-                      <div className="text-[10px] text-amber-300/90 bg-amber-950/40 p-2 rounded border border-amber-900/50">
-                        ⚠️ <strong>Zero Silent Execution:</strong> This action has NOT been submitted. Please review and provide explicit confirmation to proceed.
-                      </div>
-                    </div>
-
-                    <p className="font-medium text-slate-200">
-                      The filing is prepared. Do you want to confirm and continue with digital signing?
-                    </p>
-                  </div>
+              {currentStep === 6 && (
+                <div className="text-center text-xs text-emerald-400 font-bold py-1 flex items-center justify-center gap-1.5 font-mono">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" /> SRN Generated &rarr; Submission Finalized
                 </div>
               )}
-
-              {/* Message 4: User Explicit Confirmation */}
-              {currentStep >= 4 && (
-                <div className="flex gap-2.5 justify-end animate-in fade-in">
-                  <div className="bg-blue-600 text-white p-3 rounded-2xl rounded-tr-xs max-w-sm font-semibold">
-                    Yes, confirm and proceed with filing DIR-12.
-                  </div>
-                  <div className="w-6 h-6 rounded-full bg-blue-700 text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0">
-                    U
-                  </div>
-                </div>
-              )}
-
-              {/* Message 5: Authorization Prompt */}
-              {currentStep >= 4 && action && (
-                <div className="flex gap-2.5 justify-start animate-in fade-in">
-                  <div className="w-6 h-6 rounded-full bg-purple-900 text-purple-300 flex items-center justify-center font-bold text-[10px] flex-shrink-0 border border-purple-700">
-                    <Bot className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="bg-slate-800 border border-slate-700 text-slate-200 p-4 rounded-2xl rounded-tl-xs space-y-3 max-w-md">
-                    <div className="text-[11px] text-purple-400 font-mono">
-                      ⚙️ Tool Result: <code className="bg-slate-900 px-1 py-0.5 rounded">AUTHORIZATION_REQUIRED</code>
-                    </div>
-                    <p>
-                      This corporate filing requires an authorized <strong>Class 3 Digital Signature Certificate (DSC)</strong>. For your security, private keys and tokens are never shared with AI chat.
-                    </p>
-                    <div className="p-3 bg-purple-950/40 border border-purple-500/40 rounded-xl space-y-2">
-                      <div className="text-purple-300 font-bold flex items-center gap-1.5">
-                        <Key className="w-3.5 h-3.5" />
-                        Complete Secure Signing in Future MCA
-                      </div>
-                      <Link
-                        href={`/actions/${action.id}`}
-                        target="_blank"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold rounded-lg transition-all"
-                      >
-                        Open /actions/{action.id} <ExternalLink className="w-3 h-3" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Message 6: Final Execution Receipt */}
-              {currentStep >= 6 && srnResult && (
-                <div className="flex gap-2.5 justify-start animate-in fade-in">
-                  <div className="w-6 h-6 rounded-full bg-emerald-900 text-emerald-300 flex items-center justify-center font-bold text-[10px] flex-shrink-0 border border-emerald-700">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 p-4 rounded-2xl rounded-tl-xs space-y-2 max-w-md">
-                    <div className="font-bold text-white flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      Filing Successfully Executed
-                    </div>
-                    <p className="text-xs">
-                      Form DIR-12 has been recorded in the statutory compliance ledger.
-                    </p>
-                    <div className="p-2.5 bg-slate-950/80 rounded-lg border border-emerald-500/30 font-mono text-xs">
-                      <div>Assigned SRN: <strong>{srnResult}</strong></div>
-                      <div>Status: <strong>SUBMITTED & APPROVED</strong></div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
             </div>
           </div>
 
-          {/* RIGHT: Future MCA Server & Secure Authorization Sandbox */}
-          <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden flex flex-col h-[580px]">
-            <div className="px-4 py-3 bg-slate-800/80 border-b border-slate-700/80 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs font-bold text-slate-200">Future MCA Security & State Machine</span>
-              </div>
-              <span className="text-[10px] font-mono text-emerald-300 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-700/50">
-                State: {action ? action.status : 'DRAFT'}
-              </span>
-            </div>
-
-            <div className="p-5 flex-1 overflow-y-auto space-y-4 text-xs">
-
-              {/* Step Controls */}
-              <div className="p-4 bg-slate-800/60 rounded-xl border border-slate-700 space-y-3">
-                <div className="text-xs font-bold text-white flex items-center justify-between">
-                  <span>Interactive Protocol Triggers</span>
-                  <span className="text-[10px] font-mono text-slate-400">Step {currentStep} of 6</span>
+          {/* RIGHT: Future MCA Isolated Browser Sandbox & Actions Engine */}
+          <div className="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-white">Future MCA Isolated Sandbox</h3>
+                    <div className="text-[10px] font-mono text-slate-400">Browser Security Boundary (/actions/act_dir_demo_001)</div>
+                  </div>
                 </div>
-
-                {currentStep === 1 && (
-                  <button
-                    onClick={runStep1Identify}
-                    disabled={loadingStep}
-                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-                  >
-                    <Play className="w-4 h-4" />
-                    {loadingStep ? 'Calling identify_required_filing...' : '1. Simulate User Inquiry & Map Event'}
-                  </button>
-                )}
-
-                {currentStep === 2 && (
-                  <button
-                    onClick={runStep2Prepare}
-                    disabled={loadingStep}
-                    className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-                  >
-                    <Play className="w-4 h-4" />
-                    {loadingStep ? 'Preparing Draft in Supabase...' : '2. Call prepare_director_change'}
-                  </button>
-                )}
-
-                {currentStep === 3 && (
-                  <button
-                    onClick={runStep3Confirm}
-                    disabled={loadingStep}
-                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    {loadingStep ? 'Confirming Token...' : '3. Simulate Explicit User Confirmation'}
-                  </button>
-                )}
-
-                {currentStep === 4 && (
-                  <div className="p-4 bg-purple-950/40 border border-purple-500/40 rounded-xl space-y-3">
-                    <div className="font-bold text-purple-300 flex items-center gap-1.5">
-                      <Key className="w-4 h-4" />
-                      Browser-Isolated Digital Signature (DSC) Sandbox
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase text-slate-400">Signing Token PIN</label>
-                      <input
-                        type="password"
-                        value={tokenPin}
-                        onChange={(e) => setTokenPin(e.target.value)}
-                        className="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg font-mono text-white text-xs"
-                      />
-                    </div>
-                    <button
-                      onClick={runStep4Authorize}
-                      disabled={loadingStep}
-                      className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-                    >
-                      <Key className="w-4 h-4" />
-                      {loadingStep ? 'Verifying Certificate...' : '4. Authorize & Digitally Sign Envelope'}
-                    </button>
-                  </div>
-                )}
-
-                {currentStep === 5 && (
-                  <button
-                    onClick={runStep5Execute}
-                    disabled={loadingStep}
-                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-                  >
-                    <Send className="w-4 h-4" />
-                    {loadingStep ? 'Validating Invariants & Submitting...' : '5. Call execute_action (With Idempotency)'}
-                  </button>
-                )}
-
-                {currentStep === 6 && (
-                  <div className="p-4 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-center space-y-2 text-emerald-300">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-                    <div className="font-bold text-white">Full Post-Action Lifecycle Complete</div>
-                    <p className="text-xs text-emerald-400">
-                      The action moved securely through DRAFT &rarr; AWAITING_CONFIRMATION &rarr; AUTHORIZATION_REQUIRED &rarr; AUTHORIZED &rarr; SUBMITTED.
-                    </p>
-                  </div>
-                )}
+                <span className="text-[10px] font-mono bg-emerald-950/60 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded">
+                  State: {action ? action.status : 'IDLE'}
+                </span>
               </div>
 
-              {/* Action Object Inspection Box */}
-              {action && (
-                <div className="space-y-2">
-                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    Live Supabase Action State:
-                  </div>
-                  <pre className="p-3.5 bg-slate-950 text-slate-300 rounded-xl border border-slate-800 font-mono text-[11px] overflow-x-auto max-h-56 leading-relaxed">
-                    {JSON.stringify({
-                      id: action.id,
-                      status: action.status,
-                      confirmation_required: action.authorization_required,
-                      authorization_status: action.authorization_status,
-                      external_reference: action.external_reference || 'PENDING',
-                      audit_invariants_passed: true
-                    }, null, 2)}
-                  </pre>
+              {/* Status Display Area */}
+              {!action && (
+                <div className="p-8 text-center text-slate-500 border border-dashed border-slate-800 rounded-xl space-y-2">
+                  <Key className="w-8 h-8 text-slate-600 mx-auto" />
+                  <div className="text-xs font-semibold">No Active MCP Action Envelope</div>
+                  <div className="text-[11px]">Click Step 1 on the left to initiate the workflow.</div>
                 </div>
               )}
 
+              {action && (
+                <div className="space-y-4">
+                  {/* Action Envelope Preview */}
+                  <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2 text-xs">
+                    <div className="flex items-center justify-between font-mono text-[10px]">
+                      <span className="text-slate-400">Action ID: {action.id}</span>
+                      <span className="text-blue-400">Form: DIR-12</span>
+                    </div>
+                    <div className="font-bold text-slate-200">{action.preview.action_summary}</div>
+                    <div className="text-[11px] text-slate-400">
+                      Entity: <strong>Aeos Labs Private Limited</strong> | Deadline: 24 September 2026
+                    </div>
+                  </div>
+
+                  {/* Browser-Isolated DSC Signing Step */}
+                  {currentStep >= 4 && currentStep < 6 && (
+                    <div className="p-4 bg-purple-950/40 border border-purple-500/40 rounded-xl space-y-3">
+                      <div className="text-xs font-bold text-purple-200 flex items-center gap-1.5">
+                        <Key className="w-3.5 h-3.5 text-purple-400" />
+                        Class 3 DSC Token Authentication (Isolated Sandbox)
+                      </div>
+                      <div className="text-[11px] text-purple-300 leading-relaxed font-sans">
+                        Managing Director <strong>Varun Maya (DIN: 08945120)</strong> token detected. PIN is verified strictly in local browser memory.
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-1">DSC Signer</label>
+                          <input
+                            disabled
+                            value="Varun Maya (Managing Director)"
+                            className="w-full px-2 py-1.5 bg-slate-900 border border-slate-700 rounded text-slate-300 text-[11px]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-1">Token PIN</label>
+                          <input
+                            type="password"
+                            value={tokenPin}
+                            onChange={(e) => setTokenPin(e.target.value)}
+                            className="w-full px-2 py-1.5 bg-slate-900 border border-slate-700 rounded text-slate-300 text-[11px]"
+                          />
+                        </div>
+                      </div>
+
+                      {currentStep === 4 && (
+                        <button
+                          onClick={runStep4Authorize}
+                          disabled={loadingStep}
+                          className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-lg transition-all"
+                        >
+                          Sign Envelope & Authorize
+                        </button>
+                      )}
+
+                      {currentStep === 5 && (
+                        <button
+                          onClick={runStep5Execute}
+                          disabled={loadingStep}
+                          className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg transition-all"
+                        >
+                          Execute Submission & Generate SRN
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Submission Finalized Receipt */}
+                  {currentStep === 6 && (
+                    <div className="p-4 bg-emerald-950/40 border border-emerald-500/50 rounded-xl space-y-3 text-xs">
+                      <div className="flex items-center gap-2 font-bold text-emerald-400">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Official Submission Receipt Generated
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 font-mono text-[11px]">
+                        <div className="p-2 bg-slate-950 rounded border border-emerald-900/60">
+                          <span className="text-slate-500 block text-[9px]">SRN Reference:</span>
+                          <span className="text-white font-bold">{srnResult}</span>
+                        </div>
+                        <div className="p-2 bg-slate-950 rounded border border-emerald-900/60">
+                          <span className="text-slate-500 block text-[9px]">Director Status:</span>
+                          <span className="text-amber-400 font-bold">RESIGNATION SUBMITTED</span>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-emerald-300">
+                        Aeos Labs master data and compliance timeline updated with confirmed DIR-12 filing.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
+              <span>Security Guarantee: Zero Silent Execution</span>
+              <Link href="/actions" className="text-blue-400 hover:underline">
+                View Actions Hub &rarr;
+              </Link>
             </div>
           </div>
 

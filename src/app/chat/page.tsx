@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useWorkspace } from '@/context/WorkspaceContext';
-import { Company, Director, ComplianceDeadline } from '@/types';
 import { 
   Building2, 
   Sparkles, 
@@ -22,44 +21,36 @@ import {
   ShieldAlert, 
   ShieldCheck,
   FileText, 
-
   Briefcase, 
-  HelpCircle, 
-  Layers, 
-  SlidersHorizontal,
   ChevronRight,
   Terminal,
-  ArrowUpRight,
   Check,
-  RotateCcw,
   Paperclip,
   ArrowUpIcon,
-  Search,
-  UserX,
-  Rocket,
-  Palette,
-  MonitorIcon,
-  FileUp,
-  ImageIcon,
   LogOut,
-  Settings
+  Settings,
+  Users,
+  ExternalLink,
+  Layers,
+  FileUp
 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { PRIMARY_DEMO_COMPANY, PRIMARY_DEMO_DIRECTORS } from '@/lib/services/seedService';
 
 interface ChatMessage {
   id: string;
   sender: 'user' | 'assistant';
   text: string;
   timestamp: string;
-  type?: 'general' | 'compliance_summary' | 'intent_identified' | 'diagnosis' | 'incorporation_wizard' | 'resignation_wizard';
+  type?: 'general' | 'action_prepared' | 'compliance_summary' | 'chat_response';
   action?: {
     label: string;
     url: string;
   };
-  wizardData?: any;
-  toolsUsed?: string[];
+  action_preview?: any;
+  tools_used?: string[];
 }
 
 function ChatContent() {
@@ -73,8 +64,6 @@ function ChatContent() {
     selectedCompany, 
     setSelectedCompany, 
     allCompanies, 
-    createCompany, 
-    loadDemoCompany,
     signOut,
     isLoading
   } = useWorkspace();
@@ -82,828 +71,548 @@ function ChatContent() {
   const [inputMessage, setInputMessage] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [isCompanyMenuOpen, setIsCompanyMenuOpen] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [hasStartedChat, setHasStartedChat] = useState(false);
+  const [activeConversation, setActiveConversation] = useState<string>('conv-1');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // In-Chat Wizard State: Director Resignation
-  const [resignationStep, setResignationStep] = useState<number>(1);
-  const [resigningDirector, setResigningDirector] = useState<string>('');
-  const [resignationDate, setResignationDate] = useState<string>('2026-08-26');
-  const [resignationNoticeReceived, setResignationNoticeReceived] = useState<boolean>(true);
+  const activeCompany = selectedCompany || PRIMARY_DEMO_COMPANY;
+  const founderName = profile?.full_name || 'Varun Maya';
 
-  // In-Chat Wizard State: Incorporation
-  const [incorpStep, setIncorpStep] = useState<number>(1);
-  const [incorpType, setIncorpType] = useState<'pvt_ltd' | 'llp' | 'opc'>('pvt_ltd');
-  const [incorpName, setIncorpName] = useState<string>('');
-  const [incorpDesc, setIncorpDesc] = useState<string>('');
-  const [incorpFounders, setIncorpFounders] = useState<string>('2');
+  // Seed default recent conversations
+  const conversations = [
+    { id: 'conv-1', title: 'Director resignation (Rahul Menon)', time: 'Just now', active: activeConversation === 'conv-1' },
+    { id: 'conv-2', title: 'Incorporate Aeos Labs (SPICe+)', time: '2 hours ago', active: activeConversation === 'conv-2' },
+    { id: 'conv-3', title: 'Annual compliance review', time: 'Yesterday', active: activeConversation === 'conv-3' }
+  ];
 
-  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
-  const companyName = selectedCompany?.name || (allCompanies.length > 0 ? allCompanies[0].name : 'No Active Company');
-
-  // Protect route if unauthenticated
-  useEffect(() => {
-    if (!isLoading && !user) {
-      const currentQuery = searchParams.get('query');
-      const target = currentQuery ? `/chat?query=${encodeURIComponent(currentQuery)}` : '/chat';
-      router.push(`/auth/login?next=${encodeURIComponent(target)}`);
-    }
-  }, [user, isLoading, searchParams, router]);
-
-  // Handle URL query parameter on mount without redirecting
-  useEffect(() => {
-    const initialQuery = searchParams.get('query');
-    if (initialQuery && !hasStartedChat && user) {
-      handleSendMessage(initialQuery);
-    }
-  }, [searchParams, user]);
-
+  // Auto-scroll on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  const handleSendMessage = async (textToSend?: string) => {
-    const query = (textToSend || inputMessage).trim();
-    if (!query) return;
+  // Handle URL query parameter on mount
+  useEffect(() => {
+    const initialQuery = searchParams.get('query');
+    if (initialQuery && !hasStartedChat) {
+      handleSendMessage(initialQuery);
+    }
+  }, [searchParams]);
 
-    setHasStartedChat(true);
-    const userMsgId = `user-${Date.now()}`;
+  const handleSendMessage = async (customMessage?: string) => {
+    const messageToSend = customMessage || inputMessage;
+    if (!messageToSend.trim()) return;
+
     const userMsg: ChatMessage = {
-      id: userMsgId,
+      id: `usr-${Date.now()}`,
       sender: 'user',
-      text: query,
+      text: messageToSend,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
     setMessages(prev => [...prev, userMsg]);
-    setInputMessage('');
+    if (!customMessage) setInputMessage('');
+    setHasStartedChat(true);
     setIsTyping(true);
 
-    const qLower = query.toLowerCase();
-
-    // 1. Interactive Incorporation Wizard
-    if (qLower.includes('start a company') || qLower.includes('register a company') || qLower.includes('incorporat') || qLower.includes('new company') || qLower.includes('create company')) {
-      setTimeout(() => {
-        setIsTyping(false);
-        setMessages(prev => [
-          ...prev,
-          {
-            id: `assistant-${Date.now()}`,
-            sender: 'assistant',
-            text: `Great. Let's start your new company incorporation.\n\nI'll collect a few details conversationally and prepare your official name pre-check and SPICe+ roadmap.`,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            type: 'incorporation_wizard'
-          }
-        ]);
-      }, 700);
-      return;
-    }
-
-    // 2. Interactive Director Resignation Wizard
-    if (qLower.includes('director resign') || qLower.includes('resigned') || qLower.includes('remove director') || qLower.includes('cessation') || qLower.includes('dir-12')) {
-      setTimeout(() => {
-        setIsTyping(false);
-        setMessages(prev => [
-          ...prev,
-          {
-            id: `assistant-${Date.now()}`,
-            sender: 'assistant',
-            text: `Based on your company records for **${companyName}**, a director resignation requires filing **Form DIR-12** with the Registrar of Companies within 30 days of cessation.\n\nLet's prepare this step-by-step.`,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            type: 'resignation_wizard'
-          }
-        ]);
-      }, 700);
-      return;
-    }
-
-    // 3. Backend AI call
     try {
-      const res = await fetch('/api/ai-chat', {
+      const response = await fetch('/api/ai-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: query,
+          message: messageToSend,
           context: {
-            company_id: selectedCompany?.id,
-            company_name: companyName,
-            cin: selectedCompany?.cin,
-            role: 'founder'
+            companyName: activeCompany.name,
+            cin: activeCompany.cin,
+            workspaceId: activeCompany.workspace_id || 'ws_aeos_labs_001'
           }
         })
       });
 
-      if (!res.ok) throw new Error('Failed to get response');
-      const data = await res.json();
+      const data = await response.json();
+      const assistantMsg: ChatMessage = {
+        id: `ai-${Date.now()}`,
+        sender: 'assistant',
+        text: data.text || 'I have processed your request.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        type: data.type || 'general',
+        action: data.action,
+        action_preview: data.action_preview,
+        tools_used: data.tools_used
+      };
 
-      setIsTyping(false);
-      setMessages(prev => [
-        ...prev,
-        {
-          id: `assistant-${Date.now()}`,
-          sender: 'assistant',
-          text: data.reply || data.text || 'I have analyzed your request based on current MCA guidelines.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          type: data.type || 'general',
-          action: data.action,
-          toolsUsed: data.tools_used
-        }
-      ]);
+      setMessages(prev => [...prev, assistantMsg]);
     } catch {
-      setIsTyping(false);
-      // Helpful fallback response
-      let fallbackText = `I have verified the statutory requirements for **${companyName}** under the Companies Act 2013.\n\nEverything is in order. You can ask for filing status, director records, statutory deadlines, or error diagnoses.`;
-      if (qLower.includes('deadline') || qLower.includes('due') || qLower.includes('attention')) {
-        fallbackText = `Here is your current compliance summary for **${companyName}**:\n\n• **AOC-4 (Financial Statements):** Due in 2 days (Critical)\n• **DIR-3 KYC (Director Verification):** 1 Director pending OTP verification\n• **MGT-7 (Annual Return):** Upcoming in 20 days\n\nNo late penalties accrued yet. Would you like me to prepare AOC-4?`;
-      }
       setMessages(prev => [
         ...prev,
         {
-          id: `assistant-${Date.now()}`,
+          id: `ai-err-${Date.now()}`,
           sender: 'assistant',
-          text: fallbackText,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          type: 'general'
+          text: 'I could not connect to the MCA Action Engine. Please check your network or try again.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
+    } finally {
+      setIsTyping(false);
     }
   };
 
-  const handleResetToHero = () => {
-    setMessages([]);
-    setHasStartedChat(false);
-    setInputMessage('');
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
   };
 
-  const quickActionItems = [
-    { icon: <Building2 className="w-4 h-4 text-[#60A5FA]" />, label: "Start a Company", query: "I want to start a company" },
-    { icon: <UserX className="w-4 h-4 text-[#F87171]" />, label: "A Director Resigned", query: "A director resigned from our board" },
-    { icon: <ShieldAlert className="w-4 h-4 text-[#FBBF24]" />, label: "Know What's Due", query: "What filings and compliances are due this month?" },
-    { icon: <FileText className="w-4 h-4 text-[#34D399]" />, label: "Prepare DIR-12", query: "Prepare DIR-12 director cessation requirements" },
-    { icon: <Search className="w-4 h-4 text-[#A78BFA]" />, label: "Diagnose Filing Error", query: "Diagnose MCA rejection error" },
-    { icon: <Sparkles className="w-4 h-4 text-[#38BDF8]" />, label: "Connect MCP AI", query: "How do I connect Claude or Cursor via MCP?" },
-    { icon: <Rocket className="w-4 h-4 text-[#EC4899]" />, label: "Track SRN Application", query: "Track application status for my SRN" },
-    { icon: <Layers className="w-4 h-4 text-[#94A3B8]" />, label: "Annual Compliance (AOC-4)", query: "What is required for AOC-4 and MGT-7 filings?" },
-  ];
-
   return (
-    <div className="relative w-full h-screen min-h-screen bg-black text-white flex flex-col justify-between overflow-hidden font-sans selection:bg-white selection:text-black">
+    <div className="flex h-screen bg-[#FDFDFC] text-neutral-900 font-sans antialiased overflow-hidden selection:bg-neutral-200">
       
-      {/* Background Cinematic Arc Glow (Image 2 Aesthetic) */}
-      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-        {/* Deep blue/purple glowing ambient arc */}
-        <div className="absolute bottom-[-15%] left-1/2 -translate-x-1/2 w-[140vw] max-w-[1500px] h-[65vh] rounded-[100%] bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.35)_0%,rgba(147,51,234,0.25)_40%,rgba(0,0,0,0)_75%)] blur-3xl opacity-80" />
-        <div className="absolute bottom-[-5%] left-1/2 -translate-x-1/2 w-[110vw] max-w-[1200px] h-[40vh] rounded-[100%] border-t border-indigo-500/30 blur-[2px]" />
-      </div>
-
-      {/* Top Header Navigation */}
-      <header className="relative z-20 w-full px-4 sm:px-6 py-3.5 flex items-center justify-between border-b border-white/10 bg-black/40 backdrop-blur-md">
-        
-        {/* Left: Future MCA Brand + Company Selector */}
-        <div className="flex items-center space-x-3">
-          <Link href="/" className="flex items-center space-x-2 group">
-            <div className="w-7 h-7 rounded-full bg-white text-black font-black text-xs flex items-center justify-center font-mono shadow-sm">
-              M
-            </div>
-            <span className="font-bold text-sm tracking-tight text-white group-hover:text-neutral-300 transition-colors">
-              Future MCA
-            </span>
-          </Link>
-
-          <span className="text-white/20">|</span>
-
-          {/* Active Company Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setIsCompanyMenuOpen(!isCompanyMenuOpen)}
-              className="flex items-center space-x-2 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-neutral-200 transition-colors"
-            >
-              <Building2 className="w-3.5 h-3.5 text-[#60A5FA]" />
-              <span className="font-medium max-w-[160px] truncate">{companyName}</span>
-              <ChevronDown className="w-3 h-3 text-neutral-400" />
-            </button>
-
-            {isCompanyMenuOpen && (
-              <div className="absolute left-0 mt-1.5 w-64 bg-[#141416] border border-white/15 rounded-xl shadow-2xl py-1 z-50 text-xs">
-                <div className="px-3 py-1.5 text-[10px] uppercase font-mono tracking-wider text-neutral-400 border-b border-white/10">
-                  Switch Active Company
-                </div>
-                {allCompanies.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => {
-                      setSelectedCompany(c);
-                      setIsCompanyMenuOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 flex flex-col hover:bg-white/10 transition-colors ${
-                      selectedCompany?.id === c.id ? 'bg-white/10 text-white font-semibold' : 'text-neutral-300'
-                    }`}
-                  >
-                    <span className="truncate">{c.name}</span>
-                    <span className="text-[10px] text-neutral-500 font-mono">{c.cin}</span>
-                  </button>
-                ))}
+      {/* 1. LEFT SIDEBAR (ChatGPT Style) */}
+      <aside className="w-64 border-r border-neutral-200/80 bg-neutral-50/50 flex flex-col justify-between p-3 shrink-0 hidden md:flex">
+        <div className="space-y-3">
+          {/* Future MCA Logo */}
+          <div className="flex items-center justify-between px-2 py-1.5">
+            <Link href="/" className="flex items-center space-x-2 group">
+              <div className="w-6 h-6 rounded-lg bg-neutral-900 text-white flex items-center justify-center font-black text-xs">
+                M
               </div>
-            )}
+              <span className="font-bold text-sm tracking-tight text-neutral-900">Future MCA</span>
+              <span className="text-[9px] font-bold uppercase tracking-wider bg-neutral-200/80 text-neutral-600 px-1.5 py-0.5 rounded">
+                AI
+              </span>
+            </Link>
           </div>
 
-          {hasStartedChat && (
-            <button
-              onClick={handleResetToHero}
-              className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-white font-medium transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>New Prompt</span>
-            </button>
-          )}
+          {/* New Conversation Button */}
+          <button
+            onClick={() => {
+              setMessages([]);
+              setHasStartedChat(false);
+              setActiveConversation(`conv-${Date.now()}`);
+            }}
+            className="w-full py-2 px-3 bg-white hover:bg-neutral-100 border border-neutral-200 text-neutral-900 font-medium text-xs rounded-xl transition-all shadow-xs flex items-center justify-between group"
+          >
+            <span className="flex items-center space-x-2">
+              <Plus className="w-3.5 h-3.5 text-neutral-500 group-hover:text-neutral-900" />
+              <span>New conversation</span>
+            </span>
+            <kbd className="text-[10px] text-neutral-400 font-mono">⌘K</kbd>
+          </button>
+
+          {/* Recent Conversations */}
+          <div className="space-y-1 pt-2">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 px-2 py-1">
+              Recent Workflows
+            </div>
+            {conversations.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => {
+                  setActiveConversation(c.id);
+                  if (c.title.includes('resignation')) {
+                    handleSendMessage('My director resigned.');
+                  } else if (c.title.includes('Incorporate')) {
+                    handleSendMessage('I want to start a company.');
+                  } else {
+                    handleSendMessage('What are my upcoming deadlines?');
+                  }
+                }}
+                className={cn(
+                  "w-full text-left px-2.5 py-2 rounded-xl text-xs flex items-center justify-between transition-all truncate",
+                  c.active ? "bg-neutral-200/60 font-medium text-neutral-900" : "text-neutral-600 hover:bg-neutral-100/70"
+                )}
+              >
+                <div className="flex items-center space-x-2 truncate">
+                  <MessageSquare className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                  <span className="truncate">{c.title}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Active Companies List */}
+          <div className="space-y-1 pt-3 border-t border-neutral-200/60">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 px-2 py-1">
+              Active Company
+            </div>
+            <div className="p-2.5 bg-white border border-neutral-200 rounded-xl shadow-xs space-y-1">
+              <div className="flex items-center space-x-1.5">
+                <Building2 className="w-3.5 h-3.5 text-neutral-700" />
+                <span className="text-xs font-bold text-neutral-900 truncate">Aeos Labs Private Limited</span>
+              </div>
+              <div className="text-[10px] text-neutral-500 font-mono">U62099TN2026PTCDEMO001</div>
+              <div className="flex items-center space-x-1 pt-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                <span className="text-[10px] font-medium text-amber-700">DIR-12 Resignation Pending</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Right: Workspace Mode & Toggle to Professional UI */}
-        <div className="flex items-center space-x-2 sm:space-x-3">
-          <div className="hidden md:flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] text-neutral-300">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#4ADE80] inline-block animate-pulse" />
-            <span>Mode: <strong>Conversational Workspace</strong></span>
-          </div>
-
+        {/* User & Mode Switcher */}
+        <div className="space-y-2 pt-3 border-t border-neutral-200/80">
           <Link
             href="/overview"
-            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-white text-black hover:bg-neutral-200 text-xs font-semibold transition-all shadow-sm"
+            className="w-full p-2 bg-neutral-100 hover:bg-neutral-200/80 border border-neutral-200 rounded-xl text-xs font-bold text-neutral-800 flex items-center justify-between transition-all"
           >
-            <span>Professional UI</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <span className="flex items-center space-x-2">
+              <Briefcase className="w-3.5 h-3.5 text-neutral-600" />
+              <span>Switch to CA Dashboard</span>
+            </span>
+            <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />
           </Link>
-        </div>
-      </header>
 
-      {/* Main Content Area: HERO VIEW or CONVERSATION STREAM */}
-      {!hasStartedChat ? (
+          <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-neutral-200 shadow-xs">
+            <div className="flex items-center space-x-2 truncate">
+              <div className="w-7 h-7 rounded-full bg-neutral-900 text-white flex items-center justify-center font-bold text-xs">
+                {founderName.charAt(0)}
+              </div>
+              <div className="truncate">
+                <div className="text-xs font-bold text-neutral-900 truncate">{founderName}</div>
+                <div className="text-[10px] text-neutral-500 truncate">Managing Director</div>
+              </div>
+            </div>
+            <button
+              onClick={() => signOut()}
+              title="Sign Out"
+              className="p-1 text-neutral-400 hover:text-neutral-700 rounded-md"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* 2. MAIN CONVERSATIONAL AREA (ChatGPT Style) */}
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-[#FCFCFA] relative">
         
-        /* ==================================================
-           HERO PROMPT VIEW (Exact Image 2 Specification)
-        ================================================== */
-        <main className="relative z-10 flex-1 w-full max-w-4xl mx-auto flex flex-col items-center justify-center px-4 sm:px-6 py-6 text-center animate-in fade-in duration-300">
-          
-          {/* Top Badge */}
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-white text-xs mb-5 backdrop-blur-md shadow-sm">
-            <Sparkles className="w-3.5 h-3.5 text-[#60A5FA]" />
-            <span className="font-medium tracking-wide">Future MCA &bull; Founder Autonomous Copilot</span>
+        {/* Top Header Bar */}
+        <header className="h-14 border-b border-neutral-200/70 bg-white/70 backdrop-blur-md px-6 flex items-center justify-between shrink-0 z-10">
+          <div className="flex items-center space-x-2">
+            <span className="font-bold text-sm text-neutral-900">Conversational Workspace</span>
+            <span className="text-xs text-neutral-400">•</span>
+            <span className="text-xs font-medium text-neutral-600 truncate">Aeos Labs Private Limited</span>
           </div>
 
-          {/* Big Headline */}
-          <h1 className="text-4xl sm:text-6xl font-bold text-white tracking-tight drop-shadow-md mb-3">
-            Founders AI
-          </h1>
+          <div className="flex items-center space-x-3">
+            <Link
+              href="/actions"
+              className="text-xs font-bold text-neutral-700 hover:text-neutral-900 flex items-center space-x-1.5 bg-neutral-100 hover:bg-neutral-200/70 px-3 py-1.5 rounded-lg transition-all"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Actions & Approvals</span>
+            </Link>
+            <Link
+              href="/demo"
+              className="text-xs font-bold text-neutral-900 bg-neutral-900 hover:bg-black text-white px-3 py-1.5 rounded-lg transition-all shadow-xs"
+            >
+              Protocol Simulator &rarr;
+            </Link>
+          </div>
+        </header>
 
-          {/* Subtitle */}
-          <p className="text-sm sm:text-base text-neutral-300 max-w-xl mx-auto leading-relaxed mb-8">
-            Understand, incorporate and manage your company with autonomous intelligence.
-          </p>
+        {/* Scrollable Conversation Stream */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 max-w-4xl mx-auto w-full">
+          
+          {/* Welcome Card if Chat Not Started */}
+          {!hasStartedChat && messages.length === 0 && (
+            <div className="py-12 text-center space-y-6 max-w-xl mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-neutral-900 text-white flex items-center justify-center mx-auto shadow-md">
+                <Sparkles className="w-6 h-6 text-amber-300" />
+              </div>
+              <div className="space-y-1.5">
+                <h1 className="text-2xl font-black text-neutral-900 tracking-tight">
+                  Good afternoon, {founderName}.
+                </h1>
+                <p className="text-sm text-neutral-500">
+                  Tell me what you want to do with your company.
+                </p>
+              </div>
 
-          {/* Central Glassmorphism Prompt Box */}
-          <div className="w-full max-w-2xl bg-[#0D0D11]/90 backdrop-blur-xl rounded-2xl border border-white/15 shadow-2xl focus-within:border-white/40 transition-all p-3 sm:p-4 text-left">
-            <textarea
+              {/* Quick Action Suggestion Chips */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left pt-4">
+                <button
+                  onClick={() => handleSendMessage('My director resigned.')}
+                  className="p-3.5 bg-white hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-400 rounded-xl transition-all shadow-xs group"
+                >
+                  <div className="text-xs font-bold text-neutral-900 flex items-center justify-between">
+                    <span>&ldquo;My director resigned&rdquo;</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-neutral-400 group-hover:text-neutral-900 transition-transform group-hover:translate-x-0.5" />
+                  </div>
+                  <div className="text-[11px] text-neutral-500 mt-1">
+                    Prepare Form DIR-12 for Rahul Menon with 30-day statutory window
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleSendMessage('I want to start a company.')}
+                  className="p-3.5 bg-white hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-400 rounded-xl transition-all shadow-xs group"
+                >
+                  <div className="text-xs font-bold text-neutral-900 flex items-center justify-between">
+                    <span>&ldquo;I want to start a company&rdquo;</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-neutral-400 group-hover:text-neutral-900 transition-transform group-hover:translate-x-0.5" />
+                  </div>
+                  <div className="text-[11px] text-neutral-500 mt-1">
+                    Launch conversational SPICe+ Part A/B incorporation journey
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleSendMessage('What are my upcoming statutory deadlines?')}
+                  className="p-3.5 bg-white hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-400 rounded-xl transition-all shadow-xs group"
+                >
+                  <div className="text-xs font-bold text-neutral-900 flex items-center justify-between">
+                    <span>&ldquo;What deadlines are coming up?&rdquo;</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-neutral-400 group-hover:text-neutral-900 transition-transform group-hover:translate-x-0.5" />
+                  </div>
+                  <div className="text-[11px] text-neutral-500 mt-1">
+                    Check DIR-12, AOC-4, and MGT-7 cutoffs & penalty exposure
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleSendMessage('What is my compliance status?')}
+                  className="p-3.5 bg-white hover:bg-neutral-50 border border-neutral-200 hover:border-neutral-400 rounded-xl transition-all shadow-xs group"
+                >
+                  <div className="text-xs font-bold text-neutral-900 flex items-center justify-between">
+                    <span>&ldquo;What is my compliance status?&rdquo;</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-neutral-400 group-hover:text-neutral-900 transition-transform group-hover:translate-x-0.5" />
+                  </div>
+                  <div className="text-[11px] text-neutral-500 mt-1">
+                    Audit directors, active DINs, and RoC filings for Aeos Labs
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Render Active Messages */}
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={cn(
+                "flex space-x-3 text-sm",
+                msg.sender === 'user' ? "justify-end" : "justify-start"
+              )}
+            >
+              {msg.sender === 'assistant' && (
+                <div className="w-8 h-8 rounded-xl bg-neutral-900 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                  <Bot className="w-4 h-4 text-amber-300" />
+                </div>
+              )}
+
+              <div
+                className={cn(
+                  "max-w-2xl rounded-2xl p-4.5 space-y-3",
+                  msg.sender === 'user'
+                    ? "bg-neutral-900 text-white font-medium"
+                    : "bg-white border border-neutral-200/90 text-neutral-900 shadow-xs"
+                )}
+              >
+                {/* Tools Used Pill */}
+                {msg.tools_used && msg.tools_used.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pb-2 border-b border-neutral-100">
+                    {msg.tools_used.map((t, idx) => (
+                      <span
+                        key={idx}
+                        className="text-[10px] font-mono font-bold bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-md flex items-center space-x-1"
+                      >
+                        <Terminal className="w-2.5 h-2.5 text-neutral-400" />
+                        <span>{t}()</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Message Body */}
+                <div className="prose prose-neutral prose-sm max-w-none text-xs leading-relaxed whitespace-pre-line">
+                  {msg.text}
+                </div>
+
+                {/* Structured Action Preview Card */}
+                {msg.action && (
+                  <div className="pt-2 border-t border-neutral-100 space-y-2.5">
+                    <div className="p-3 bg-neutral-50 border border-neutral-200/80 rounded-xl space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
+                          State: Awaiting User Confirmation
+                        </span>
+                        <span className="text-[10px] font-bold text-neutral-500">Zero Silent Execution</span>
+                      </div>
+                      <div className="text-xs font-bold text-neutral-900">
+                        {msg.action.label}
+                      </div>
+                      <p className="text-[11px] text-neutral-600">
+                        Review the complete statutory form draft, document checklist, and authorize isolated digital signing.
+                      </p>
+                    </div>
+
+                    <Link
+                      href={msg.action.url}
+                      className="w-full py-2.5 px-4 bg-neutral-900 hover:bg-black text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center justify-center space-x-1.5 text-center"
+                    >
+                      <span>{msg.action.label} &rarr;</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {msg.sender === 'user' && (
+                <div className="w-8 h-8 rounded-xl bg-neutral-200 text-neutral-700 flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
+                  {founderName.charAt(0)}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Typing Indicator */}
+          {isTyping && (
+            <div className="flex space-x-3 items-center">
+              <div className="w-8 h-8 rounded-xl bg-neutral-900 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Bot className="w-4 h-4 text-amber-300 animate-pulse" />
+              </div>
+              <div className="p-3 bg-white border border-neutral-200 rounded-2xl flex items-center space-x-1.5 text-xs text-neutral-500 shadow-xs">
+                <span className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce"></span>
+                <span className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                <span className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                <span className="ml-1 text-[11px] font-mono">Verifying MCA statutory rules...</span>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input Bar Fixed Bottom */}
+        <div className="p-4 md:p-6 border-t border-neutral-200/80 bg-white/80 backdrop-blur-md shrink-0">
+          <div className="max-w-3xl mx-auto relative bg-white border border-neutral-300 focus-within:border-neutral-900 rounded-2xl shadow-sm transition-all p-2">
+            <Textarea
               ref={textareaRef}
-              rows={2}
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-              placeholder="Ask anything about your company, filings, ROC compliance or incorporation..."
-              className="w-full bg-transparent text-white text-sm sm:text-base outline-none resize-none placeholder:text-neutral-500 min-h-[48px] px-2 py-1 font-sans"
+              onKeyDown={handleKeyDown}
+              placeholder="Tell me what you want to do with your company..."
+              rows={2}
+              className="w-full resize-none border-0 focus-visible:ring-0 text-xs text-neutral-900 placeholder:text-neutral-400 p-2 outline-none shadow-none"
             />
 
-            {/* Input Box Footer */}
-            <div className="flex items-center justify-between pt-3 border-t border-white/10 mt-2 px-1">
-              <div className="flex items-center space-x-2 text-neutral-400">
-                <button
-                  type="button"
-                  className="p-1 rounded hover:text-white hover:bg-white/10 transition-colors"
-                  title="Attach Documents"
-                >
-                  <Paperclip className="w-4 h-4" />
-                </button>
-                <span className="text-[11px] font-mono hidden sm:inline text-neutral-500">
-                  Press Enter ↵ to send
+            <div className="flex items-center justify-between pt-1 px-1 border-t border-neutral-100">
+              <div className="flex items-center space-x-2 text-[11px] text-neutral-500">
+                <span className="inline-flex items-center space-x-1 font-mono text-[10px] bg-neutral-100 px-2 py-0.5 rounded">
+                  <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                  <span>Zero Silent Execution Active</span>
                 </span>
               </div>
 
-              <button
-                type="button"
+              <Button
                 onClick={() => handleSendMessage()}
-                disabled={!inputMessage.trim()}
-                className={cn(
-                  "flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all",
-                  inputMessage.trim()
-                    ? "bg-white text-black hover:bg-neutral-200 cursor-pointer shadow-md"
-                    : "bg-white/10 text-neutral-500 cursor-not-allowed"
-                )}
+                disabled={!inputMessage.trim() || isTyping}
+                size="sm"
+                className="bg-neutral-900 hover:bg-black text-white rounded-xl font-bold text-xs h-8 px-3"
               >
-                <span>Ask AI</span>
-                <ArrowUpIcon className="w-3.5 h-3.5" />
-              </button>
+                <span>Send</span>
+                <ArrowUpIcon className="w-3.5 h-3.5 ml-1" />
+              </Button>
             </div>
           </div>
-
-          {/* Quick Action Chips Grid */}
-          <div className="flex items-center justify-center flex-wrap gap-2 sm:gap-2.5 mt-6 max-w-2xl">
-            {quickActionItems.map((item, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleSendMessage(item.query)}
-                className="flex items-center space-x-2 px-3.5 py-2 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 hover:border-white/30 text-neutral-200 hover:text-white transition-all text-xs shadow-sm backdrop-blur-md group"
-              >
-                {item.icon}
-                <span className="font-medium">{item.label}</span>
-              </button>
-            ))}
-          </div>
-
-        </main>
-
-      ) : (
-
-        /* ==================================================
-           ACTIVE CONVERSATIONAL THREAD (No Page Redirect)
-        ================================================== */
-        <main className="relative z-10 flex-1 w-full max-w-4xl mx-auto flex flex-col justify-between px-4 sm:px-6 py-4 overflow-hidden">
-          
-          {/* Scrollable Message List */}
-          <div className="flex-1 overflow-y-auto space-y-4 pr-1 pb-4 scrollbar-thin scrollbar-thumb-white/10">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {msg.sender === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-[#1E293B] border border-white/10 flex items-center justify-center shrink-0 shadow-sm">
-                    <Bot className="w-4 h-4 text-[#60A5FA]" />
-                  </div>
-                )}
-
-                <div className={`max-w-2xl ${msg.sender === 'user' ? 'order-1' : 'order-2'}`}>
-                  
-                  {/* Sender & Timestamp */}
-                  <div className={`flex items-center space-x-2 text-[10px] font-mono text-neutral-400 mb-1 ${
-                    msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                  }`}>
-                    <span>{msg.sender === 'user' ? displayName : 'FUTURE MCA ASSISTANT'}</span>
-                    <span>&bull;</span>
-                    <span>{msg.timestamp}</span>
-                  </div>
-
-                  {/* Message Bubble */}
-                  <div className={`p-4 rounded-2xl text-xs sm:text-sm leading-relaxed ${
-                    msg.sender === 'user'
-                      ? 'bg-white text-black font-medium rounded-tr-xs shadow-md'
-                      : 'bg-[#121217] border border-white/15 text-neutral-200 rounded-tl-xs shadow-xl backdrop-blur-md'
-                  }`}>
-                    
-                    {/* Render Formatted Markdown/Text */}
-                    <div className="whitespace-pre-wrap space-y-2">
-                      {msg.text}
-                    </div>
-
-                    {/* Tools Used Chips */}
-                    {msg.toolsUsed && msg.toolsUsed.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-white/10 mt-2">
-                        <span className="text-[10px] font-mono text-neutral-400">MCP Tools:</span>
-                        {msg.toolsUsed.map((tool, tIdx) => (
-                          <span key={tIdx} className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                            {tool}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Action CTA Button */}
-                    {msg.action && (
-                      <div className="pt-3">
-                        <Link
-                          href={msg.action.url}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-all"
-                        >
-                          <ShieldCheck className="w-4 h-4 text-blue-200" />
-                          <span>{msg.action.label}</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </Link>
-                      </div>
-                    )}
-
-
-                    {/* Interactive In-Chat Wizard: DIRECTOR RESIGNATION */}
-                    {msg.type === 'resignation_wizard' && (
-                      <div className="bg-[#181820] border border-white/15 rounded-xl p-4 space-y-4 text-xs mt-3 text-white">
-                        <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                          <div className="font-bold text-white flex items-center space-x-1.5">
-                            <UserX className="w-4 h-4 text-[#F87171]" />
-                            <span>Director Resignation (Form DIR-12) Assistant</span>
-                          </div>
-                          <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded font-mono">
-                            Step {resignationStep} of 2
-                          </span>
-                        </div>
-
-                        {resignationStep === 1 ? (
-                          <div className="space-y-3">
-                            <div>
-                              <label className="text-[11px] font-semibold text-neutral-300 block mb-1">
-                                1. Select the resigning director:
-                              </label>
-                              {selectedCompany?.directors && selectedCompany.directors.length > 0 ? (
-                                <select
-                                  value={resigningDirector}
-                                  onChange={(e) => setResigningDirector(e.target.value)}
-                                  className="w-full p-2.5 bg-[#0D0D11] border border-white/15 rounded-lg text-xs font-medium text-white outline-none focus:border-blue-500"
-                                >
-                                  <option value="">-- Choose Registered Director --</option>
-                                  {selectedCompany.directors.map(d => (
-                                    <option key={d.din} value={d.full_name}>
-                                      {d.full_name} (DIN: {d.din}) - {d.designation}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <input
-                                  type="text"
-                                  value={resigningDirector}
-                                  onChange={(e) => setResigningDirector(e.target.value)}
-                                  placeholder="Enter Director Name (DIN: 8 digits)"
-                                  className="w-full p-2.5 bg-[#0D0D11] border border-white/15 rounded-lg text-xs font-medium text-white outline-none focus:border-blue-500"
-                                />
-                              )}
-                            </div>
-
-                            <div>
-                              <label className="text-[11px] font-semibold text-neutral-300 block mb-1">
-                                2. Date of Resignation / Cessation:
-                              </label>
-                              <input
-                                type="date"
-                                value={resignationDate}
-                                onChange={(e) => setResignationDate(e.target.value)}
-                                className="w-full p-2.5 bg-[#0D0D11] border border-white/15 rounded-lg text-xs text-white outline-none focus:border-blue-500"
-                              >
-                              </input>
-                            </div>
-
-                            <div className="flex items-center space-x-2 pt-1">
-                              <input
-                                type="checkbox"
-                                id="notice"
-                                checked={resignationNoticeReceived}
-                                onChange={(e) => setResignationNoticeReceived(e.target.checked)}
-                                className="rounded bg-black text-blue-500"
-                              />
-                              <label htmlFor="notice" className="text-[11px] text-neutral-300">
-                                Formal notice letter received and noted by the Board
-                              </label>
-                            </div>
-
-                            <div className="pt-2 flex justify-end">
-                              <button
-                                onClick={() => setResignationStep(2)}
-                                disabled={!resigningDirector}
-                                className="px-4 py-2 bg-white text-black disabled:opacity-40 text-xs font-bold rounded-lg transition-colors flex items-center space-x-1.5"
-                              >
-                                <span>Continue</span>
-                                <ArrowRight className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <div className="p-3 bg-[#064E3B]/30 border border-[#059669]/40 rounded-lg text-xs space-y-1 text-[#A7F3D0]">
-                              <div className="font-bold">Filing Summary Ready:</div>
-                              <div className="text-[11px] leading-relaxed">
-                                &bull; Form: <strong>DIR-12 (Intimation of Director Cessation)</strong><br />
-                                &bull; Director: <strong>{resigningDirector}</strong><br />
-                                &bull; Effective Date: <strong>{resignationDate}</strong><br />
-                                &bull; Statutory Deadline: <strong>Within 30 days</strong> (No statutory penalty if filed on time)
-                              </div>
-                            </div>
-
-                            <div className="flex items-center justify-between pt-1">
-                              <button
-                                onClick={() => setResignationStep(1)}
-                                className="text-xs text-neutral-400 hover:text-white underline"
-                              >
-                                &larr; Back
-                              </button>
-
-                              <button
-                                onClick={() => {
-                                  setMessages(prev => [
-                                    ...prev,
-                                    {
-                                      id: `assistant-${Date.now()}`,
-                                      sender: 'assistant',
-                                      text: `Draft Form DIR-12 has been initialized for **${resigningDirector}**. Board resolution extract generated and attached to your workspace.`,
-                                      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                                      type: 'general'
-                                    }
-                                  ]);
-                                }}
-                                className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-lg transition-colors flex items-center space-x-1.5 shadow-sm"
-                              >
-                                <span>Complete DIR-12 Draft in Chat</span>
-                                <Check className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Interactive In-Chat Wizard: INCORPORATION */}
-                    {msg.type === 'incorporation_wizard' && (
-                      <div className="bg-[#181820] border border-white/15 rounded-xl p-4 space-y-4 text-xs mt-3 text-white">
-                        <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                          <div className="font-bold text-white flex items-center space-x-1.5">
-                            <Building2 className="w-4 h-4 text-[#60A5FA]" />
-                            <span>Conversational Incorporation Assistant</span>
-                          </div>
-                          <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded font-mono">
-                            Step {incorpStep} of 2
-                          </span>
-                        </div>
-
-                        {incorpStep === 1 ? (
-                          <div className="space-y-3">
-                            <div>
-                              <label className="text-[11px] font-semibold text-neutral-300 block mb-1">
-                                1. Entity Type:
-                              </label>
-                              <div className="grid grid-cols-3 gap-2">
-                                {[
-                                  { id: 'pvt_ltd', label: 'Private Limited', sub: 'Pvt Ltd' },
-                                  { id: 'llp', label: 'LLP', sub: 'Partnership' },
-                                  { id: 'opc', label: 'One Person', sub: 'OPC' }
-                                ].map((t) => (
-                                  <button
-                                    key={t.id}
-                                    type="button"
-                                    onClick={() => setIncorpType(t.id as any)}
-                                    className={`p-2 rounded-lg border text-left transition-all ${
-                                      incorpType === t.id
-                                        ? 'bg-blue-600/30 border-blue-500 text-white'
-                                        : 'bg-[#0D0D11] border-white/10 text-neutral-400 hover:border-white/20'
-                                    }`}
-                                  >
-                                    <div className="font-bold text-xs">{t.label}</div>
-                                    <div className="text-[10px] text-neutral-500">{t.sub}</div>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div>
-                              <label className="text-[11px] font-semibold text-neutral-300 block mb-1">
-                                2. Proposed Company Name:
-                              </label>
-                              <input
-                                type="text"
-                                value={incorpName}
-                                onChange={(e) => setIncorpName(e.target.value)}
-                                placeholder="e.g. NeoCraft AI Private Limited"
-                                className="w-full p-2.5 bg-[#0D0D11] border border-white/15 rounded-lg text-xs text-white outline-none focus:border-blue-500"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="text-[11px] font-semibold text-neutral-300 block mb-1">
-                                3. Business Activity Description:
-                              </label>
-                              <input
-                                type="text"
-                                value={incorpDesc}
-                                onChange={(e) => setIncorpDesc(e.target.value)}
-                                placeholder="e.g. Next-gen enterprise autonomous software solutions"
-                                className="w-full p-2.5 bg-[#0D0D11] border border-white/15 rounded-lg text-xs text-white outline-none focus:border-blue-500"
-                              />
-                            </div>
-
-                            <div className="pt-2 flex justify-end">
-                              <button
-                                onClick={() => setIncorpStep(2)}
-                                disabled={!incorpName.trim()}
-                                className="px-4 py-2 bg-white text-black disabled:opacity-40 text-xs font-bold rounded-lg transition-colors flex items-center space-x-1.5"
-                              >
-                                <span>Generate Incorporation Roadmap</span>
-                                <ArrowRight className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <div className="p-3 bg-[#064E3B]/30 border border-[#059669]/40 rounded-lg text-xs space-y-1.5 text-[#A7F3D0]">
-                              <div className="font-bold text-white">Proposed Entity Summary:</div>
-                              <div className="text-[11px] leading-relaxed">
-                                &bull; Entity: <strong>{incorpName} Private Limited</strong><br />
-                                &bull; Jurisdiction: <strong>Central Registration Centre (CRC Manesar)</strong><br />
-                                &bull; Included Forms: <strong>SPICe+ Part A (RUN), Part B, e-MoA, e-AoA, AGILE-PRO-S</strong><br />
-                                &bull; Registrations: <strong>PAN, TAN, EPFO, ESIC, Professional Tax, Bank Account</strong>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center justify-between pt-1">
-                              <button
-                                onClick={() => setIncorpStep(1)}
-                                className="text-xs text-neutral-400 hover:text-white underline"
-                              >
-                                &larr; Back
-                              </button>
-
-                              <button
-                                onClick={async () => {
-                                  try {
-                                    await createCompany({
-                                      name: `${incorpName} Private Limited`,
-                                      legal_type: 'Private Limited Company',
-                                      status: 'ACTIVE',
-                                      paid_up_capital: 100000,
-                                      authorized_capital: 1000000,
-                                      email: user?.email || 'c.subanesh@gmail.com'
-                                    });
-                                    setMessages(prev => [
-                                      ...prev,
-                                      {
-                                        id: `assistant-${Date.now()}`,
-                                        sender: 'assistant',
-                                        text: `**${incorpName} Private Limited** draft company workspace has been provisioned! You can now prepare promoters' DIN KYC and affix Class 3 DSCs.`,
-                                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                                        type: 'general'
-                                      }
-                                    ]);
-                                  } catch (err: any) {
-                                    console.error(err);
-                                  }
-                                }}
-                                className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-lg transition-colors flex items-center space-x-1.5 shadow-sm"
-                              >
-                                <span>Initialize Company Workspace</span>
-                                <Check className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                  </div>
-                </div>
-
-                {msg.sender === 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-white text-black font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
-                    {displayName[0]}
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {isTyping && (
-              <div className="flex gap-3 justify-start items-center">
-                <div className="w-8 h-8 rounded-full bg-[#1E293B] border border-white/10 flex items-center justify-center shrink-0">
-                  <Bot className="w-4 h-4 text-[#60A5FA]" />
-                </div>
-                <div className="p-3 bg-[#121217] border border-white/10 rounded-2xl text-xs text-neutral-400 flex items-center space-x-2">
-                  <span className="w-2 h-2 rounded-full bg-[#60A5FA] animate-ping" />
-                  <span>Synthesizing statutory rules & MCA context...</span>
-                </div>
-              </div>
-            )}
-
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Bottom Chat Prompt Bar */}
-          <div className="pt-2">
-            
-            {/* Quick Suggestion Chips */}
-            <div className="flex items-center space-x-2 overflow-x-auto pb-2 scrollbar-none text-[11px]">
-              <span className="text-neutral-400 shrink-0 font-medium">Suggestions:</span>
-              {[
-                'What needs attention?',
-                'Upcoming deadlines',
-                'Start a company',
-                'A director resigned',
-                'Diagnose MCA error'
-              ].map((chip, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSendMessage(chip)}
-                  className="px-3 py-1 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-neutral-300 hover:text-white whitespace-nowrap transition-colors"
-                >
-                  {chip}
-                </button>
-              ))}
-            </div>
-
-            {/* Input Bar */}
-            <div className="relative bg-[#0D0D11] border border-white/15 rounded-xl flex items-center p-1.5 focus-within:border-white/40 transition-colors shadow-2xl">
-              <input
-                type="text"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                placeholder="Ask anything about your company in plain language..."
-                className="flex-1 bg-transparent px-3 py-2 text-xs sm:text-sm text-white placeholder:text-neutral-500 outline-none font-sans"
-              />
-
-              <button
-                type="button"
-                onClick={() => handleSendMessage()}
-                disabled={!inputMessage.trim()}
-                className={cn(
-                  "p-2 rounded-lg transition-colors flex items-center justify-center",
-                  inputMessage.trim()
-                    ? "bg-white text-black hover:bg-neutral-200 cursor-pointer"
-                    : "bg-white/10 text-neutral-500 cursor-not-allowed"
-                )}
-              >
-                <ArrowUpIcon className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="text-center text-[10px] text-neutral-500 mt-1.5 font-mono">
-              Future MCA uses Model Context Protocol (MCP) to access only your authorized company records.
-            </div>
-
-          </div>
-
-        </main>
-      )}
-
-      {/* Bottom Left User Profile Avatar & Switcher (Image 2 Corner Icon) */}
-      <div className="absolute bottom-4 left-4 z-30">
-        <div className="relative">
-          <button
-            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-            className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs flex items-center justify-center transition-all shadow-lg backdrop-blur-md"
-            title="User Profile & Mode"
-          >
-            {displayName[0] || 'S'}
-          </button>
-
-          {isUserMenuOpen && (
-            <div className="absolute bottom-11 left-0 w-56 bg-[#141418] border border-white/15 rounded-xl shadow-2xl p-2 z-50 text-xs">
-              <div className="px-2 py-1.5 border-b border-white/10 mb-1">
-                <div className="font-bold text-white truncate">{displayName}</div>
-                <div className="text-[10px] text-neutral-400 truncate">{user?.email || 'c.subanesh@gmail.com'}</div>
-              </div>
-
-              <button
-                onClick={() => {
-                  setRole('professional');
-                  setIsUserMenuOpen(false);
-                  router.push('/overview');
-                }}
-                className="w-full text-left px-2 py-1.5 rounded hover:bg-white/10 text-neutral-200 font-medium flex items-center justify-between transition-colors"
-              >
-                <span>Switch to CA/CS UI</span>
-                <ArrowRight className="w-3 h-3 text-neutral-400" />
-              </button>
-
-              <Link
-                href="/settings"
-                onClick={() => setIsUserMenuOpen(false)}
-                className="w-full text-left px-2 py-1.5 rounded hover:bg-white/10 text-neutral-200 font-medium flex items-center justify-between transition-colors"
-              >
-                <span>Settings</span>
-                <Settings className="w-3 h-3 text-neutral-400" />
-              </Link>
-
-              <button
-                onClick={() => signOut()}
-                className="w-full text-left px-2 py-1.5 rounded hover:bg-red-500/20 text-red-400 font-medium flex items-center space-x-1.5 transition-colors mt-1 border-t border-white/10"
-              >
-                <LogOut className="w-3 h-3" />
-                <span>Sign Out</span>
-              </button>
-            </div>
-          )}
         </div>
-      </div>
+
+      </main>
+
+      {/* 3. RIGHT CONTEXT PANEL (Linear / Stripe Style) */}
+      <aside className="w-80 border-l border-neutral-200/80 bg-neutral-50/40 p-5 shrink-0 hidden lg:flex flex-col justify-between overflow-y-auto space-y-6">
+        <div className="space-y-5">
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+              Active Company Context
+            </div>
+            <h2 className="text-sm font-black text-neutral-900 mt-1">
+              Aeos Labs Private Limited
+            </h2>
+            <div className="text-[10px] font-mono text-neutral-500 mt-0.5">
+              CIN: U62099TN2026PTCDEMO001
+            </div>
+          </div>
+
+          {/* Pending Action Card */}
+          <div className="p-3.5 bg-amber-50/60 border border-amber-200/80 rounded-2xl space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] font-mono font-bold uppercase tracking-wider bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded">
+                High Priority
+              </span>
+              <span className="text-[10px] font-bold text-amber-700">Form DIR-12</span>
+            </div>
+            <div className="text-xs font-bold text-neutral-900">
+              Director Resignation (Rahul Menon)
+            </div>
+            <p className="text-[11px] text-neutral-600 leading-tight">
+              Effective date: 25 August 2026. Action draft prepared in Actions Hub.
+            </p>
+            <Link
+              href="/actions/act_dir_demo_001"
+              className="block w-full py-1.5 bg-neutral-900 hover:bg-black text-white text-center font-bold text-[11px] rounded-lg transition-all"
+            >
+              Review Action Draft &rarr;
+            </Link>
+          </div>
+
+          {/* Board of Directors */}
+          <div className="space-y-2">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+              Board of Directors (2)
+            </div>
+            <div className="space-y-2">
+              <div className="p-2.5 bg-white border border-neutral-200 rounded-xl space-y-0.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-neutral-900">Varun Maya</span>
+                  <span className="text-[9px] font-mono font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">
+                    Active MD
+                  </span>
+                </div>
+                <div className="text-[10px] text-neutral-500 font-mono">DIN: 08945120 | DSC Active</div>
+              </div>
+
+              <div className="p-2.5 bg-white border border-amber-300 rounded-xl space-y-0.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-neutral-900">Rahul Menon</span>
+                  <span className="text-[9px] font-mono font-bold bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded">
+                    Resigned
+                  </span>
+                </div>
+                <div className="text-[10px] text-neutral-500 font-mono">DIN: 09124589 | Resigned 25 Aug</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Registered Office */}
+          <div className="space-y-1.5 text-xs text-neutral-600">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+              Registered Office
+            </div>
+            <p className="text-[11px] leading-relaxed">
+              Level 4, IITM Research Park, Kanagam Road, Taramani, Chennai, Tamil Nadu – 600113
+            </p>
+          </div>
+        </div>
+
+        {/* Security Assurance Badge */}
+        <div className="p-3 bg-neutral-100/80 border border-neutral-200 rounded-xl text-[10px] text-neutral-500 space-y-1">
+          <div className="font-bold text-neutral-800 flex items-center space-x-1">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Zero Credential Exposure</span>
+          </div>
+          <div>DSC PINs, tokens & passwords are never accessible to AI. Authorization occurs in browser sandbox.</div>
+        </div>
+      </aside>
 
     </div>
   );
 }
 
-export default function FounderChatDashboard() {
+export default function ChatPage() {
   return (
-    <React.Suspense fallback={<div className="w-full h-screen bg-black flex items-center justify-center text-xs text-neutral-400">Loading Assistant...</div>}>
+    <Suspense fallback={<div className="p-8 text-xs font-mono">Loading Future MCA Conversational Workspace...</div>}>
       <ChatContent />
-    </React.Suspense>
+    </Suspense>
   );
 }

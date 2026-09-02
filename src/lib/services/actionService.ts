@@ -253,6 +253,7 @@ export class ActionService {
       din?: string;
       effective_date: string;
       reason?: string;
+      documents?: string[];
     },
     context: ActionContext = {}
   ): Promise<McpAction> {
@@ -817,16 +818,16 @@ export class ActionService {
 
     // 3. Mark as PROCESSING -> SUBMITTED
     action.status = 'PROCESSING';
-    const srn = `SRN${Date.now().toString().slice(-9)}`;
+    const srn = `DEMO-SRN-2026-${Date.now().toString().slice(-6)}`;
     const submittedAt = new Date().toISOString();
 
     const receipt = {
       reference_number: srn,
       submitted_at: submittedAt,
       mode: 'SIMULATED_DEMO_EXECUTION' as const,
-      statutory_filing_fee: action.preview.estimated_fee || 500,
-      challan_receipt: `CHALLAN-IN-${Date.now().toString().slice(-6)}`,
-      confirmation_message: `Statutory e-Form ${action.preview.form_code || 'Action'} has been securely processed in Future MCA. Internal workflow recorded with Reference Number: ${srn}.`
+      statutory_filing_fee: action.preview.estimated_fee || 300,
+      challan_receipt: `CHALLAN-TN-${Date.now().toString().slice(-6)}`,
+      confirmation_message: `Statutory e-Form ${action.preview.form_code || 'DIR-12'} has been securely processed. Internal workflow recorded with Reference: ${srn}.`
     };
 
     action.status = 'SUBMITTED';
@@ -838,11 +839,29 @@ export class ActionService {
 
     await this.persistAction(action);
 
-    // 4. Also register into applications / filings in Supabase so it shows on the UI dashboards
+    // 4. Update director status if this was a director resignation
+    try {
+      if (action.action_type === 'DIRECTOR_CHANGE') {
+        const din = action.payload?.din || '09124589';
+        await supabase
+          .from('directors')
+          .update({ status: 'RESIGNED', din_status: 'CESSATION_FILED' })
+          .eq('din', din);
+
+        await supabase
+          .from('compliance_deadlines')
+          .update({ status: 'FILED', urgency: 'completed' })
+          .eq('form_code', 'DIR-12');
+      }
+    } catch {
+      // offline fallback
+    }
+
+    // 5. Also register into applications / filings in Supabase so it shows on the UI dashboards
     try {
       if (action.company_id || action.payload.company_cin) {
         await supabase.from('filings').insert({
-          company_id: action.company_id,
+          company_id: action.company_id || 'comp_aeos_001',
           form_code: action.preview.form_code || 'DIR-12',
           form_title: action.preview.action_summary,
           category: action.action_type,
@@ -851,12 +870,12 @@ export class ActionService {
           filed_date: new Date().toISOString().split('T')[0],
           status: 'FILED',
           srn,
-          fee_paid: action.preview.estimated_fee || 500,
+          fee_paid: action.preview.estimated_fee || 300,
           late_fee: 0
         });
 
         await supabase.from('applications').insert({
-          company_id: action.company_id,
+          company_id: action.company_id || 'comp_aeos_001',
           application_no: srn,
           title: action.preview.action_summary,
           type: action.action_type === 'DIRECTOR_CHANGE' ? 'DIRECTOR_CHANGE' : 'ANNUAL_FILING',

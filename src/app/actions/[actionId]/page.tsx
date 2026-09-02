@@ -417,8 +417,8 @@ export default function ActionDetailPage() {
                           onChange={(e) => setSelectedDsc(e.target.value)}
                           className="w-full px-3 py-2 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl text-xs font-mono text-[#0F172A]"
                         >
-                          <option value="dsc-token-01">Subanesh (DIN: 08947219) - eMudhra Class 3 (Valid till 2028)</option>
-                          <option value="dsc-token-02">Authorized Director - Capricorn SHA-256 (Valid till 2027)</option>
+                          <option value="dsc-token-01">Varun Maya (DIN: 08945120) - eMudhra Class 3 (Managing Director)</option>
+                          <option value="dsc-token-02">Ananya Krishnan (FCA 408219) - Capricorn Class 3 (Practicing CA)</option>
                         </select>
                       </div>
 

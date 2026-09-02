@@ -129,10 +129,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
       // 2. Build profile from authentic session
       const localRole = (typeof window !== 'undefined' ? localStorage.getItem('future_mca_role') : null) as WorkspaceRole || 'founder';
+      const isCA = localRole === 'professional';
       const userProfile: UserProfile = {
-        id: activeUser.id || 'usr-default',
-        email: activeUser.email || 'user@futuremca.in',
-        full_name: activeUser.user_metadata?.full_name || activeUser.email?.split('@')[0] || 'User',
+        id: activeUser.id || (isCA ? 'usr_ananya_krishnan' : 'usr_varun_maya'),
+        email: activeUser.email || (isCA ? 'ananya@krishnanpartners.in' : 'varun@aeoslabs.in'),
+        full_name: activeUser.user_metadata?.full_name || (isCA ? 'Ananya Krishnan' : 'Varun Maya'),
         persona: activeUser.user_metadata?.persona || localRole
       };
       setProfile(userProfile);
@@ -156,8 +157,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         setCurrentWorkspace(activeWs);
       } else {
         const defaultWs: Workspace = {
-          id: 'ws-default',
-          name: `${userProfile.full_name}'s Workspace`,
+          id: 'ws_aeos_labs_001',
+          name: isCA ? 'Krishnan & Partners CA Practice' : 'Aeos Labs Workspace',
           type: userProfile.persona,
           created_at: new Date().toISOString()
         };

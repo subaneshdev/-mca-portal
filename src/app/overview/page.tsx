@@ -2,137 +2,71 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { ComplianceService } from '@/lib/services/complianceService';
 import { FilingService } from '@/lib/services/filingService';
-import { ComplianceDeadline, Application, Company } from '@/types';
+import { ComplianceDeadline, Application } from '@/types';
 import { 
   AlertTriangle, 
-  Clock, 
-  ArrowRight, 
-  Sparkles, 
-  CheckCircle2, 
   Building2, 
-  FileText, 
-  ShieldAlert, 
-  HelpCircle,
-  ExternalLink,
-  ChevronRight,
-  RefreshCw,
-  Plus,
-  Database,
-  Search,
-  Filter,
-  Layers,
-  ArrowUpRight,
-  ShieldCheck,
-  Check,
-  Briefcase,
-  Users,
-  Terminal,
-  Bot
+  Plus, 
+  Search, 
+  ShieldCheck, 
+  Briefcase, 
+  Bot, 
+  ArrowRight,
+  Clock,
+  CheckCircle2,
+  FileText
 } from 'lucide-react';
+import { PORTFOLIO_COMPANIES, PRIMARY_DEMO_DEADLINES } from '@/lib/services/seedService';
 
 export default function OverviewDashboard() {
-  const router = useRouter();
   const { 
     profile, 
     user, 
-    role, 
-    setRole, 
-    selectedCompany, 
-    setSelectedCompany, 
     allCompanies, 
-    openAiWithQuery, 
-    loadDemoCompany, 
     dbError 
   } = useWorkspace();
 
-  const [deadlines, setDeadlines] = useState<ComplianceDeadline[]>([]);
+  const [deadlines, setDeadlines] = useState<ComplianceDeadline[]>(PRIMARY_DEMO_DEADLINES);
   const [applications, setApplications] = useState<Application[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState<'all' | 'critical' | 'action_required' | 'upcoming'>('all');
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      if (selectedCompany?.id) {
-        const [compData, appData] = await Promise.all([
-          ComplianceService.listCompliance({ companyId: selectedCompany.id }),
-          FilingService.listApplications(selectedCompany.id)
-        ]);
-        setDeadlines(compData);
-        setApplications(appData);
-      } else {
-        const compData = await ComplianceService.listCompliance({});
-        setDeadlines(compData);
-      }
-    } catch (err) {
-      console.error('Error loading dashboard data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const companiesList = allCompanies.length > 0 ? allCompanies : PORTFOLIO_COMPANIES;
+  const caName = profile?.persona === 'professional' ? profile?.full_name : 'Ananya Krishnan';
 
   useEffect(() => {
-    loadData();
-  }, [selectedCompany?.id]);
+    const load = async () => {
+      try {
+        const [compData, appData] = await Promise.all([
+          ComplianceService.listCompliance().catch(() => PRIMARY_DEMO_DEADLINES),
+          FilingService.listApplications().catch(() => [])
+        ]);
+        setDeadlines(compData.length > 0 ? compData : PRIMARY_DEMO_DEADLINES);
+        setApplications(appData);
+      } catch {
+        // graceful
+      }
+    };
+    load();
+  }, []);
 
   const criticalItems = deadlines.filter(d => d.urgency === 'critical');
-  const actionItems = deadlines.filter(d => d.urgency === 'action_required');
   const upcomingItems = deadlines.filter(d => d.urgency === 'upcoming');
-  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'Professional';
-
-  // Dynamically compute alerts from registered workspace companies
-  interface CompanyAlertItem {
-    company: string;
-    cin: string;
-    form: string;
-    title: string;
-    due: string;
-    urgency: 'critical' | 'action_required' | 'upcoming';
-    actionUrl: string;
-  }
-
-  const multiCompanyAlerts: CompanyAlertItem[] = allCompanies.flatMap((c): CompanyAlertItem[] => {
-    const list: CompanyAlertItem[] = [];
-    if (c.compliance_count?.critical) {
-      list.push({
-        company: c.name,
-        cin: c.cin,
-        form: 'AOC-4 / DIR-3 KYC',
-        title: 'Statutory Annual Filings Pending',
-        due: 'Urgent Action Required',
-        urgency: 'critical',
-        actionUrl: `/filings/new?company=${encodeURIComponent(c.cin)}`
-      });
-    }
-    if (c.compliance_count?.action_required) {
-      list.push({
-        company: c.name,
-        cin: c.cin,
-        form: 'Compliance Schedule',
-        title: 'Upcoming Statutory Obligations',
-        due: 'Action Required',
-        urgency: 'action_required',
-        actionUrl: `/compliance?company=${encodeURIComponent(c.cin)}`
-      });
-    }
-    return list;
-  });
 
   const standardFormsCatalogue = [
-    { code: 'DIR-12', name: 'Director Appointment / Cessation', cat: 'Management', section: 'Sec 168/170' },
+    { code: 'DIR-12', name: 'Director Resignation / Appointment', cat: 'Board Governance', section: 'Sec 168/170' },
+    { code: 'SPICe+ Part B', name: 'Company Incorporation Suite', cat: 'Incorporation', section: 'Sec 7, Rule 38' },
     { code: 'AOC-4', name: 'Annual Financial Statements', cat: 'Annual Return', section: 'Sec 137' },
-    { code: 'MGT-7', name: 'Annual Return of Company', cat: 'Annual Return', section: 'Sec 92' },
+    { code: 'MGT-7A', name: 'Annual Return of Company', cat: 'Annual Return', section: 'Sec 92' },
     { code: 'INC-22', name: 'Registered Office Change', cat: 'Office', section: 'Sec 12' },
     { code: 'PAS-3', name: 'Return of Allotment of Shares', cat: 'Capital', section: 'Sec 39/42' },
     { code: 'DPT-3', name: 'Return of Deposits & Exemptions', cat: 'Compliance', section: 'Sec 73' },
-    { code: 'DIR-3 KYC', name: 'Director Web KYC Confirmation', cat: 'Director DIN', section: 'Rule 12A' },
-    { code: 'SPICe+ Part B', name: 'Company Incorporation Suite', cat: 'Incorporation', section: 'Rule 38' }
+    { code: 'DIR-3 KYC', name: 'Director Annual KYC Verification', cat: 'Director DIN', section: 'Rule 12A' }
   ];
 
   const filteredDeadlines = deadlines.filter(d => {
@@ -146,163 +80,168 @@ export default function OverviewDashboard() {
     <AppShell>
       <div className="space-y-6">
         
-        {/* DB Error Alert */}
+        {/* DB Error Alert if any */}
         {dbError && (
-          <div className="p-4 bg-[#FEF2F2] border border-[#DC2626]/30 rounded-xl text-xs text-[#DC2626] flex items-center space-x-3">
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center space-x-3">
             <AlertTriangle className="w-5 h-5 shrink-0" />
             <div>
-              <div className="font-bold">Database Connectivity Alert</div>
+              <div className="font-bold">Database Notice</div>
               <div className="text-[11px] mt-0.5">{dbError}</div>
             </div>
           </div>
         )}
 
-        {/* Top Operational Header Bar */}
-        <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Operational Header Bar */}
+        <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center space-x-2">
-              <span className="text-[10px] font-bold font-mono uppercase tracking-wider text-[#0066CC] bg-[#EFF6FF] px-2 py-0.5 rounded border border-[#BFDBFE]">
-                Professional Operations Workspace
+              <span className="text-[10px] font-bold font-mono uppercase tracking-wider text-neutral-800 bg-neutral-100 px-2 py-0.5 rounded border border-neutral-300">
+                CA / CS Operational Workspace
               </span>
-              <span className="text-xs text-[#64748B]">• CA / CS Practice Centre</span>
+              <span className="text-xs text-neutral-500">• Krishnan & Partners Practice Hub</span>
             </div>
-            <h1 className="text-2xl font-black tracking-tight text-[#0B2545] mt-1.5">
-              Good morning, {displayName}.
+            <h1 className="text-2xl font-black tracking-tight text-neutral-900 mt-1.5">
+              Good morning, {caName}.
             </h1>
-            <p className="text-xs text-[#475569] mt-0.5">
-              Here is your multi-company compliance matrix, priority deadlines, and rapid filing tools.
+            <p className="text-xs text-neutral-600 mt-0.5">
+              Managing corporate compliance portfolio, statutory action queues, and filings for Aeos Labs.
             </p>
           </div>
 
           <div className="flex items-center space-x-2.5 shrink-0">
-            {/* Quick Switch to Founder Chat */}
             <Link
               href="/chat"
-              className="px-3.5 py-2 rounded-xl bg-white hover:bg-[#F8FAFC] border-2 border-[#CBD5E1] text-[#0B2545] font-bold text-xs flex items-center space-x-1.5 transition-all shadow-xs"
+              className="px-3.5 py-2 rounded-xl bg-white hover:bg-neutral-50 border border-neutral-300 text-neutral-900 font-bold text-xs flex items-center space-x-1.5 transition-all shadow-xs"
             >
-              <Bot className="w-4 h-4 text-[#0066CC]" />
-              <span>Open Founder Chat</span>
+              <Bot className="w-4 h-4 text-neutral-700" />
+              <span>Founder AI Chat</span>
             </Link>
 
             <Link
-              href="/filings/new"
-              className="px-4 py-2 rounded-xl bg-[#0B2545] hover:bg-[#07192F] text-white font-bold text-xs flex items-center space-x-1.5 transition-all shadow-xs"
+              href="/actions"
+              className="px-4 py-2 rounded-xl bg-neutral-900 hover:bg-black text-white font-bold text-xs flex items-center space-x-1.5 transition-all shadow-xs"
             >
-              <Plus className="w-4 h-4" />
-              <span>New Filing</span>
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Actions Hub</span>
             </Link>
           </div>
         </div>
 
-        {/* 4 Multi-Company Operational Stat Cards */}
+        {/* Operational Stat Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          
-          <div className="p-5 bg-white border border-[#E2E8F0] rounded-2xl shadow-xs space-y-1">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Active Companies</div>
-            <div className="text-3xl font-black text-[#0B2545]">{allCompanies.length}</div>
-            <div className="text-[11px] text-[#64748B]">In active client portfolio</div>
+          <div className="p-5 bg-white border border-neutral-200 rounded-2xl shadow-xs space-y-1">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Companies Managed</div>
+            <div className="text-3xl font-black text-neutral-900">{companiesList.length}</div>
+            <div className="text-[11px] text-neutral-500">Active portfolio entities</div>
           </div>
 
-          <div className="p-5 bg-[#FEF2F2] border border-[#FECACA] rounded-2xl shadow-xs space-y-1">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#991B1B]">Attention Required</div>
-            <div className="text-3xl font-black text-[#DC2626]">{criticalItems.length}</div>
-            <div className="text-[11px] text-[#B91C1C]">Immediate statutory cutoffs</div>
+          <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl shadow-xs space-y-1">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-900">Urgent Actions</div>
+            <div className="text-3xl font-black text-amber-700">1</div>
+            <div className="text-[11px] text-amber-800">Aeos Labs DIR-12 Resignation</div>
           </div>
 
-          <div className="p-5 bg-[#FFFBEB] border border-[#FDE68A] rounded-2xl shadow-xs space-y-1">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#92400E]">Upcoming Deadlines</div>
-            <div className="text-3xl font-black text-[#D97706]">{upcomingItems.length}</div>
-            <div className="text-[11px] text-[#B45309]">Next 30 to 60 days</div>
+          <div className="p-5 bg-neutral-50 border border-neutral-200 rounded-2xl shadow-xs space-y-1">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-600">Upcoming Deadlines</div>
+            <div className="text-3xl font-black text-neutral-800">{upcomingItems.length || 2}</div>
+            <div className="text-[11px] text-neutral-500">Scheduled next 30-60 days</div>
           </div>
 
-          <div className="p-5 bg-[#EFF6FF] border border-[#BFDBFE] rounded-2xl shadow-xs space-y-1">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#1E40AF]">Applications (SRN)</div>
-            <div className="text-3xl font-black text-[#0066CC]">{applications.length}</div>
-            <div className="text-[11px] text-[#1D4ED8]">Under RoC scrutiny / approval</div>
+          <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl shadow-xs space-y-1">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-900">Actions Awaiting Review</div>
+            <div className="text-3xl font-black text-emerald-700">1</div>
+            <div className="text-[11px] text-emerald-800">Ready for DSC Authorization</div>
           </div>
-
         </div>
 
-        {/* Empty State when workspace has 0 companies */}
-        {allCompanies.length === 0 && (
-          <div className="bg-white border-2 border-dashed border-[#CBD5E1] rounded-2xl p-8 text-center space-y-4 shadow-xs">
-            <div className="w-12 h-12 rounded-2xl bg-[#EFF6FF] text-[#0066CC] flex items-center justify-center mx-auto">
-              <Building2 className="w-6 h-6" />
+        {/* PRIMARY PORTFOLIO ACTION: AEOS LABS DIR-12 WORKFLOW */}
+        <div className="bg-white border-2 border-neutral-900 rounded-2xl shadow-sm p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-200 pb-3">
+            <div className="flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-900">
+                Primary Open Workflow: Director Resignation (DIR-12)
+              </h2>
             </div>
-            <div className="max-w-md mx-auto space-y-1">
-              <h3 className="text-base font-bold text-[#0B2545]">Your Workspace is Empty</h3>
-              <p className="text-xs text-[#64748B]">
-                You haven&apos;t created or onboarded any companies in this workspace yet. Add a new company or connect your MCA portal to start tracking compliance.
-              </p>
+            <span className="text-xs font-mono font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">
+              Priority: High (Statutory 30 Days)
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-1">
+              <div className="text-[10px] uppercase font-bold text-neutral-500">Target Entity</div>
+              <div className="text-xs font-bold text-neutral-900">Aeos Labs Private Limited</div>
+              <div className="text-[10px] font-mono text-neutral-500">U62099TN2026PTCDEMO001 (ROC Chennai)</div>
             </div>
-            <div className="flex items-center justify-center gap-3">
+
+            <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-1">
+              <div className="text-[10px] uppercase font-bold text-neutral-500">Resigning Director</div>
+              <div className="text-xs font-bold text-neutral-900">Rahul Menon</div>
+              <div className="text-[10px] font-mono text-neutral-500">DIN: 09124589 | Notice Date: 25 Aug 2026</div>
+            </div>
+
+            <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-xl flex flex-col justify-between space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-neutral-500">Action Status</span>
+                <span className="text-[10px] font-bold text-amber-700">Awaiting User Confirmation</span>
+              </div>
               <Link
-                href="/onboarding"
-                className="px-4 py-2 bg-[#0B2545] hover:bg-[#07192F] text-white text-xs font-bold rounded-xl transition-all shadow-xs inline-flex items-center space-x-1.5"
+                href="/actions/act_dir_demo_001"
+                className="w-full py-2 bg-neutral-900 hover:bg-black text-white text-center font-bold text-xs rounded-lg transition-all shadow-xs"
               >
-                <Plus className="w-4 h-4" />
-                <span>Onboard / Create Company</span>
+                Review Prepared DIR-12 &rarr;
               </Link>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* SECTION 1: ATTENTION REQUIRED (Multi-Company Action Matrix) */}
-        {multiCompanyAlerts.length > 0 && (
-          <div className="bg-white border border-[#CBD5E1] rounded-2xl shadow-xs p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
-              <div className="flex items-center space-x-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#DC2626]"></span>
-                <h2 className="text-sm font-bold uppercase tracking-wider text-[#0B2545]">
-                  Attention Required (High-Priority Client Operations)
-                </h2>
-              </div>
-              <span className="text-xs text-[#64748B] font-mono">Real-Time Sync</span>
-            </div>
+        {/* COMPANY PORTFOLIO MATRIX */}
+        <div className="bg-white border border-neutral-200 rounded-2xl shadow-xs p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-900">
+              Client Portfolio Overview ({companiesList.length} Entities)
+            </h2>
+            <Link href="/companies" className="text-xs font-bold text-neutral-900 hover:underline">
+              View All Companies &rarr;
+            </Link>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {multiCompanyAlerts.slice(0, 3).map((item, idx) => (
-                <div
-                  key={idx}
-                  className="p-4 bg-[#F8FAFC] border border-[#CBD5E1] hover:border-[#0B2545] rounded-xl flex flex-col justify-between space-y-3 transition-all"
-                >
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono font-bold bg-[#FEF2F2] text-[#DC2626] px-2 py-0.5 rounded">
-                        {item.form}
-                      </span>
-                      <span className="text-[10px] font-bold text-[#DC2626]">{item.due}</span>
-                    </div>
-                    <div className="text-xs font-bold text-[#0B2545] truncate">{item.company}</div>
-                    <p className="text-[11px] text-[#64748B]">{item.title}</p>
-                  </div>
-
-                  <Link
-                    href={item.actionUrl}
-                    className="w-full py-2 px-3 bg-white hover:bg-[#0B2545] hover:text-white border border-[#CBD5E1] text-[#0B2545] font-bold text-xs rounded-lg transition-all text-center flex items-center justify-center space-x-1"
-                  >
-                    <span>Prepare &rarr;</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {companiesList.map((c) => (
+              <div key={c.id} className="p-4 bg-neutral-50 border border-neutral-200 hover:border-neutral-400 rounded-xl transition-all space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="font-bold text-xs text-neutral-900 truncate">{c.name}</div>
+                  <span className="text-[9px] font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
+                    {c.status}
+                  </span>
+                </div>
+                <div className="text-[10px] text-neutral-500 font-mono">{c.cin}</div>
+                <div className="flex items-center justify-between pt-1 border-t border-neutral-200/60 text-xs">
+                  <span className="text-[11px] text-neutral-600 truncate">{c.next_action}</span>
+                  <Link href={`/filings/new?company=${encodeURIComponent(c.cin)}`} className="text-[11px] font-bold text-neutral-900 hover:underline">
+                    Prepare &rarr;
                   </Link>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
 
-        {/* SECTION 2: FORMS-FIRST RAPID LAUNCH CATALOGUE */}
-        <div className="bg-[#F8FAFC] border border-[#CBD5E1] rounded-2xl p-6 space-y-4 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E2E8F0] pb-3">
+        {/* DIRECT E-FORMS CATALOGUE */}
+        <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-6 space-y-4 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-200 pb-3">
             <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-[#0B2545]">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-900">
                 Direct e-Forms & Statutory Workflows
               </h2>
-              <p className="text-xs text-[#64748B] mt-0.5">
-                Launch structured forms directly without conversational navigation.
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Launch statutory workflows directly into the MCP preparation layer.
               </p>
             </div>
             <Link
               href="/filings/new"
-              className="text-xs font-bold text-[#0066CC] hover:underline flex items-center space-x-1"
+              className="text-xs font-bold text-neutral-900 hover:underline flex items-center space-x-1"
             >
               <span>View All 42 MCA Forms &rarr;</span>
             </Link>
@@ -313,118 +252,22 @@ export default function OverviewDashboard() {
               <Link
                 key={form.code}
                 href={`/filings/new?form=${form.code}`}
-                className="p-3.5 bg-white border border-[#CBD5E1] hover:border-[#0B2545] rounded-xl transition-all shadow-xs group block"
+                className="p-3.5 bg-white border border-neutral-200 hover:border-neutral-900 rounded-xl transition-all shadow-xs group block"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-bold text-[#0066CC] group-hover:text-[#0B2545]">
+                  <span className="font-mono text-xs font-bold text-neutral-900 group-hover:text-black">
                     {form.code}
                   </span>
-                  <span className="text-[9px] text-[#64748B] font-mono">{form.section}</span>
+                  <span className="text-[9px] text-neutral-400 font-mono">{form.section}</span>
                 </div>
-                <div className="text-xs font-semibold text-[#0F172A] mt-1 truncate">
+                <div className="text-xs font-semibold text-neutral-800 mt-1 truncate">
                   {form.name}
                 </div>
-                <div className="text-[10px] text-[#64748B] mt-0.5">
+                <div className="text-[10px] text-neutral-500 mt-0.5">
                   {form.cat}
                 </div>
               </Link>
             ))}
-          </div>
-        </div>
-
-        {/* SECTION 3: UPCOMING STATUTORY FILINGS TABLE */}
-        <div className="bg-white border border-[#CBD5E1] rounded-2xl shadow-xs p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E8F0] pb-3">
-            <div className="flex items-center space-x-2">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-[#0B2545]">
-                Statutory Compliance & Filings Schedule
-              </h2>
-              <span className="text-xs font-mono text-[#64748B]">({filteredDeadlines.length} Items)</span>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              {/* Search */}
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-[#64748B] absolute left-2.5 top-2.5" />
-                <input
-                  type="text"
-                  value={searchFilter}
-                  onChange={(e) => setSearchFilter(e.target.value)}
-                  placeholder="Filter by form or topic..."
-                  className="pl-8 pr-3 py-1.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg text-xs outline-none focus:border-[#0B2545]"
-                />
-              </div>
-
-              {/* Urgency Filter */}
-              <select
-                value={urgencyFilter}
-                onChange={(e) => setUrgencyFilter(e.target.value as any)}
-                className="py-1.5 px-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg text-xs font-medium outline-none"
-              >
-                <option value="all">All Urgencies</option>
-                <option value="critical">Critical</option>
-                <option value="action_required">Action Required</option>
-                <option value="upcoming">Upcoming</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#F8FAFC] text-[#64748B] uppercase font-bold text-[10px] border-b border-[#E2E8F0]">
-                <tr>
-                  <th className="py-2.5 px-3">Form Code</th>
-                  <th className="py-2.5 px-3">Compliance Title</th>
-                  <th className="py-2.5 px-3">Section / Law</th>
-                  <th className="py-2.5 px-3">Statutory Due Date</th>
-                  <th className="py-2.5 px-3">Penalty Exposure</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E2E8F0]">
-                {filteredDeadlines.map((item) => (
-                  <tr key={item.id} className="hover:bg-[#F8FAFC] transition-colors">
-                    <td className="py-3 px-3 font-mono font-bold text-[#0066CC]">
-                      {item.form_code}
-                    </td>
-                    <td className="py-3 px-3">
-                      <div className="font-semibold text-[#0B2545]">{item.title}</div>
-                      <div className="text-[10px] text-[#64748B] truncate max-w-xs">{item.description}</div>
-                    </td>
-                    <td className="py-3 px-3 font-mono text-[11px] text-[#64748B]">
-                      {item.section || 'Companies Act'}
-                    </td>
-                    <td className="py-3 px-3 font-medium">
-                      <span className={item.urgency === 'critical' ? 'text-[#DC2626] font-bold' : ''}>
-                        {item.due_date}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 font-mono text-[11px]">
-                      {item.penalty_per_day > 0 ? `₹${item.penalty_per_day}/day` : 'Standard fee'}
-                    </td>
-                    <td className="py-3 px-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                        item.urgency === 'critical' ? 'bg-[#FEF2F2] text-[#DC2626]' :
-                        item.urgency === 'action_required' ? 'bg-[#FFFBEB] text-[#D97706]' :
-                        'bg-[#F1F5F9] text-[#475569]'
-                      }`}>
-                        {item.urgency.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 text-right">
-                      <Link
-                        href={`/filings/new?form=${item.form_code}`}
-                        className="px-2.5 py-1 bg-[#0B2545] hover:bg-[#07192F] text-white font-bold text-[11px] rounded-md transition-colors inline-block"
-                      >
-                        Prepare
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         </div>
 
