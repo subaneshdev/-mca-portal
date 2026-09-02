@@ -352,25 +352,44 @@ export async function executeMcpTool(
           )
         : companies;
 
-      const finalResults = results.length > 0 ? results : companies;
-      return { companies: finalResults, total: finalResults.length, workspace_id: context.workspaceId || 'universal' };
+      return { 
+        companies: results, 
+        total: results.length, 
+        workspace_id: context.workspaceId || null,
+        message: results.length === 0 ? 'No registered companies found in this workspace.' : undefined
+      };
     }
     case 'get_company_profile': {
-      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || 'U72900KA2021PTC145892').trim();
-      const company = await CompanyService.getCompanyByCin(target) || (await CompanyService.listCompanies())[0];
-      if (!company) return { error: `Company "${target}" not found in database.` };
+      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
+      if (!target) {
+        const companies = await CompanyService.listCompanies(context.workspaceId);
+        if (companies.length === 0) {
+          return { error: 'No company registered in your workspace yet. Please onboard or create a company first.' };
+        }
+        const company = companies[0];
+        const directors = await CompanyService.getCompanyDirectors(company.id);
+        return { company: { ...company, directors } };
+      }
+      const company = await CompanyService.getCompanyByCin(target, context.workspaceId);
+      if (!company) return { error: `Company "${target}" not found in your workspace.` };
       const directors = await CompanyService.getCompanyDirectors(company.id);
       return { company: { ...company, directors } };
     }
     case 'get_company_directors': {
-      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || 'U72900KA2021PTC145892').trim();
-      const directors = await CompanyService.getCompanyDirectors(target);
+      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
+      let companyId = target;
+      if (!companyId) {
+        const companies = await CompanyService.listCompanies(context.workspaceId);
+        if (companies.length === 0) return { directors: [], total: 0, message: 'No company found in workspace.' };
+        companyId = companies[0].id;
+      }
+      const directors = await CompanyService.getCompanyDirectors(companyId);
       return { directors, total: directors.length };
     }
     case 'get_compliance_status': {
-      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || 'U72900KA2021PTC145892').trim();
+      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
       const deadlines = await ComplianceService.listCompliance({
-        companyId: target,
+        companyId: target || undefined,
         urgency: args.urgency
       });
       const criticalCount = deadlines.filter(d => d.urgency === 'critical').length;
@@ -386,14 +405,14 @@ export async function executeMcpTool(
       };
     }
     case 'get_upcoming_deadlines': {
-      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || 'U72900KA2021PTC145892').trim();
-      const deadlines = await ComplianceService.getUpcomingDeadlines(target);
+      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
+      const deadlines = await ComplianceService.getUpcomingDeadlines(target || undefined);
       return { deadlines, total: deadlines.length };
     }
     case 'get_next_required_action': {
-      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || 'U72900KA2021PTC145892').trim();
-      const company = await CompanyService.getCompanyByCin(target);
-      const critical = await ComplianceService.getCriticalActions(target);
+      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
+      const company = target ? await CompanyService.getCompanyByCin(target, context.workspaceId) : null;
+      const critical = await ComplianceService.getCriticalActions(target || undefined);
       if (critical.length > 0) {
         return {
           priority: 'CRITICAL',
@@ -403,8 +422,8 @@ export async function executeMcpTool(
       }
       return {
         priority: 'NORMAL',
-        message: 'No immediate critical filings overdue. Next scheduled review is on track.',
-        company: company?.name || 'Ziggers Private Limited'
+        message: 'No immediate critical statutory filings overdue.',
+        company: company?.name || undefined
       };
     }
 

@@ -199,69 +199,95 @@ export default function OverviewDashboard() {
           
           <div className="p-5 bg-white border border-[#E2E8F0] rounded-2xl shadow-xs space-y-1">
             <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Active Companies</div>
-            <div className="text-3xl font-black text-[#0B2545]">{Math.max(allCompanies.length, 24)}</div>
+            <div className="text-3xl font-black text-[#0B2545]">{allCompanies.length}</div>
             <div className="text-[11px] text-[#64748B]">In active client portfolio</div>
           </div>
 
           <div className="p-5 bg-[#FEF2F2] border border-[#FECACA] rounded-2xl shadow-xs space-y-1">
             <div className="text-[10px] font-bold uppercase tracking-wider text-[#991B1B]">Attention Required</div>
-            <div className="text-3xl font-black text-[#DC2626]">{criticalItems.length || 6}</div>
+            <div className="text-3xl font-black text-[#DC2626]">{criticalItems.length}</div>
             <div className="text-[11px] text-[#B91C1C]">Immediate statutory cutoffs</div>
           </div>
 
           <div className="p-5 bg-[#FFFBEB] border border-[#FDE68A] rounded-2xl shadow-xs space-y-1">
             <div className="text-[10px] font-bold uppercase tracking-wider text-[#92400E]">Upcoming Deadlines</div>
-            <div className="text-3xl font-black text-[#D97706]">{upcomingItems.length || 18}</div>
+            <div className="text-3xl font-black text-[#D97706]">{upcomingItems.length}</div>
             <div className="text-[11px] text-[#B45309]">Next 30 to 60 days</div>
           </div>
 
           <div className="p-5 bg-[#EFF6FF] border border-[#BFDBFE] rounded-2xl shadow-xs space-y-1">
             <div className="text-[10px] font-bold uppercase tracking-wider text-[#1E40AF]">Applications (SRN)</div>
-            <div className="text-3xl font-black text-[#0066CC]">{applications.length || 4}</div>
+            <div className="text-3xl font-black text-[#0066CC]">{applications.length}</div>
             <div className="text-[11px] text-[#1D4ED8]">Under RoC scrutiny / approval</div>
           </div>
 
         </div>
 
-        {/* SECTION 1: ATTENTION REQUIRED (Multi-Company Action Matrix) */}
-        <div className="bg-white border border-[#CBD5E1] rounded-2xl shadow-xs p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
-            <div className="flex items-center space-x-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#DC2626]"></span>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-[#0B2545]">
-                Attention Required (High-Priority Client Operations)
-              </h2>
+        {/* Empty State when workspace has 0 companies */}
+        {allCompanies.length === 0 && (
+          <div className="bg-white border-2 border-dashed border-[#CBD5E1] rounded-2xl p-8 text-center space-y-4 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-[#EFF6FF] text-[#0066CC] flex items-center justify-center mx-auto">
+              <Building2 className="w-6 h-6" />
             </div>
-            <span className="text-xs text-[#64748B] font-mono">Real-Time Sync</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {multiCompanyAlerts.slice(0, 3).map((item, idx) => (
-              <div
-                key={idx}
-                className="p-4 bg-[#F8FAFC] border border-[#CBD5E1] hover:border-[#0B2545] rounded-xl flex flex-col justify-between space-y-3 transition-all"
+            <div className="max-w-md mx-auto space-y-1">
+              <h3 className="text-base font-bold text-[#0B2545]">Your Workspace is Empty</h3>
+              <p className="text-xs text-[#64748B]">
+                You haven&apos;t created or onboarded any companies in this workspace yet. Add a new company or connect your MCA portal to start tracking compliance.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-3">
+              <Link
+                href="/onboarding"
+                className="px-4 py-2 bg-[#0B2545] hover:bg-[#07192F] text-white text-xs font-bold rounded-xl transition-all shadow-xs inline-flex items-center space-x-1.5"
               >
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono font-bold bg-[#FEF2F2] text-[#DC2626] px-2 py-0.5 rounded">
-                      {item.form}
-                    </span>
-                    <span className="text-[10px] font-bold text-[#DC2626]">{item.due}</span>
-                  </div>
-                  <div className="text-xs font-bold text-[#0B2545] truncate">{item.company}</div>
-                  <p className="text-[11px] text-[#64748B]">{item.title}</p>
-                </div>
-
-                <Link
-                  href={item.actionUrl}
-                  className="w-full py-2 px-3 bg-white hover:bg-[#0B2545] hover:text-white border border-[#CBD5E1] text-[#0B2545] font-bold text-xs rounded-lg transition-all text-center flex items-center justify-center space-x-1"
-                >
-                  <span>Prepare &rarr;</span>
-                </Link>
-              </div>
-            ))}
+                <Plus className="w-4 h-4" />
+                <span>Onboard / Create Company</span>
+              </Link>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* SECTION 1: ATTENTION REQUIRED (Multi-Company Action Matrix) */}
+        {multiCompanyAlerts.length > 0 && (
+          <div className="bg-white border border-[#CBD5E1] rounded-2xl shadow-xs p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
+              <div className="flex items-center space-x-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#DC2626]"></span>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-[#0B2545]">
+                  Attention Required (High-Priority Client Operations)
+                </h2>
+              </div>
+              <span className="text-xs text-[#64748B] font-mono">Real-Time Sync</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {multiCompanyAlerts.slice(0, 3).map((item, idx) => (
+                <div
+                  key={idx}
+                  className="p-4 bg-[#F8FAFC] border border-[#CBD5E1] hover:border-[#0B2545] rounded-xl flex flex-col justify-between space-y-3 transition-all"
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-bold bg-[#FEF2F2] text-[#DC2626] px-2 py-0.5 rounded">
+                        {item.form}
+                      </span>
+                      <span className="text-[10px] font-bold text-[#DC2626]">{item.due}</span>
+                    </div>
+                    <div className="text-xs font-bold text-[#0B2545] truncate">{item.company}</div>
+                    <p className="text-[11px] text-[#64748B]">{item.title}</p>
+                  </div>
+
+                  <Link
+                    href={item.actionUrl}
+                    className="w-full py-2 px-3 bg-white hover:bg-[#0B2545] hover:text-white border border-[#CBD5E1] text-[#0B2545] font-bold text-xs rounded-lg transition-all text-center flex items-center justify-center space-x-1"
+                  >
+                    <span>Prepare &rarr;</span>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* SECTION 2: FORMS-FIRST RAPID LAUNCH CATALOGUE */}
         <div className="bg-[#F8FAFC] border border-[#CBD5E1] rounded-2xl p-6 space-y-4 shadow-xs">

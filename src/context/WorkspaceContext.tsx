@@ -306,7 +306,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     data: Partial<Company>,
     directors: Partial<Director>[] = []
   ): Promise<Company> => {
-    const created = await CompanyService.createCompany(data, directors);
+    const created = await CompanyService.createCompany({
+      ...data,
+      workspace_id: currentWorkspace?.id || null
+    }, directors);
     await refreshCompanies();
     setSelectedCompany(created);
     return created;
