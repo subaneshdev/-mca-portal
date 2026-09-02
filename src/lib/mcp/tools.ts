@@ -701,56 +701,49 @@ export async function executeMcpTool(
       };
     }
     case 'create_company': {
-      const name = args.company_name || args.name || 'Aether Labs Private Limited';
+      const name = args.company_name || args.name || 'New Venture Private Limited';
       const companyType = args.company_type || 'Private Limited Company';
-      const business = args.business_activity || 'AI Infrastructure and Enterprise Automation';
-      const office = args.registered_office || 'Chennai, Tamil Nadu, India';
+      const business = args.business_activity || 'Technology Services';
+      const office = args.registered_office || 'Tamil Nadu, India';
       const capital = args.authorized_capital || '₹10,00,000';
+      const capitalNum = parseInt(String(capital).replace(/[^\d]/g, '')) || 1000000;
 
-      PRIMARY_DEMO_COMPANY.name = name;
-      PRIMARY_DEMO_COMPANY.cin = 'U62099TN2026PTC145678';
-      PRIMARY_DEMO_COMPANY.legal_type = companyType;
-      PRIMARY_DEMO_COMPANY.registered_office = office;
-      PRIMARY_DEMO_COMPANY.status = 'ACTIVE';
+      // Build directors from what Claude actually provided
+      const rawDirs = args.directors || [];
+      const directorEntries = rawDirs.map((d: any, i: number) => ({
+        id: `dir_mcp_${Date.now()}_${i}`,
+        company_id: `comp_mcp_${Date.now()}`,
+        din: `09${Math.floor(100000 + Math.random() * 900000)}`,
+        full_name: typeof d === 'string' ? d : (d.full_name || d.name || `Director ${i + 1}`),
+        designation: (typeof d === 'object' && d.designation) || 'Director',
+        appointment_date: new Date().toISOString().split('T')[0],
+        din_status: 'APPROVED' as const,
+        dsc_status: 'ACTIVE' as const,
+        kyc_status: 'COMPLIANT' as const,
+        email: ''
+      }));
 
-      PRIMARY_DEMO_DIRECTORS.length = 0;
-      PRIMARY_DEMO_DIRECTORS.push(
-        {
-          id: 'dir_varun_001',
-          company_id: PRIMARY_DEMO_COMPANY.id,
-          din: '08945120',
-          full_name: 'Varun Maya',
-          designation: 'Director',
-          appointment_date: '2026-01-15',
-          din_status: 'APPROVED',
-          dsc_status: 'ACTIVE',
-          kyc_status: 'COMPLIANT',
-          email: 'varun@aetherlabs.in'
-        },
-        {
-          id: 'dir_arun_002',
-          company_id: PRIMARY_DEMO_COMPANY.id,
-          din: '09124589',
-          full_name: 'Arun Kumar',
-          designation: 'Director',
-          appointment_date: '2026-01-15',
-          din_status: 'APPROVED',
-          dsc_status: 'ACTIVE',
-          kyc_status: 'COMPLIANT',
-          email: 'arun@aetherlabs.in'
-        }
-      );
+      // Generate a unique CIN for this company
+      const uniqueSuffix = Math.floor(100000 + Math.random() * 900000);
+      const stateCode = office.toLowerCase().includes('tamil') ? 'TN' :
+                        office.toLowerCase().includes('karnataka') ? 'KA' :
+                        office.toLowerCase().includes('maharashtra') ? 'MH' :
+                        office.toLowerCase().includes('delhi') ? 'DL' : 'TN';
+      const cin = `U62099${stateCode}2026PTC${uniqueSuffix}`;
 
+      // Create via CompanyService — this pushes into DYNAMIC_COMPANIES + PORTFOLIO_COMPANIES
+      // so it will appear on ALL dashboards immediately on next load
       try {
         await CompanyService.createCompany({
           name,
-          cin: 'U62099TN2026PTC145678',
+          cin,
           legal_type: companyType,
           registered_office: office,
-          authorized_capital: 1000000
-        }, PRIMARY_DEMO_DIRECTORS);
+          authorized_capital: capitalNum,
+          paid_up_capital: capitalNum
+        }, directorEntries);
       } catch {
-        // offline fallback
+        // offline fallback — still in DYNAMIC_COMPANIES from createCompany's memory push
       }
 
       return {
@@ -758,15 +751,12 @@ export async function executeMcpTool(
         message: `Done. ${name} has been created in Future MCA. I've added the company, its directors, and the initial compliance workspace.`,
         company: {
           name,
-          cin: 'U62099TN2026PTC145678',
+          cin,
           company_type: companyType,
           business_activity: business,
           registered_office: office,
           authorized_capital: capital,
-          directors: [
-            { name: 'Varun Maya', status: 'Active' },
-            { name: 'Arun Kumar', status: 'Active' }
-          ]
+          directors: directorEntries.map((d: any) => ({ name: d.full_name, status: 'Active' }))
         }
       };
     }

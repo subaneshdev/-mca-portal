@@ -62,13 +62,15 @@ export async function POST(request: NextRequest) {
         const business = activeDemoState.business_activity || 'AI Infrastructure and Enterprise Automation';
         const office = activeDemoState.registered_office || 'Chennai, Tamil Nadu, India';
         const capital = activeDemoState.authorized_capital || '₹10,00,000';
+        const directors = activeDemoState.directors || ['Varun Maya', 'Arun Kumar'];
 
-        await executeMcpTool('create_company', {
+        const result = await executeMcpTool('create_company', {
           company_name: companyName,
           company_type: companyType,
           business_activity: business,
           registered_office: office,
-          authorized_capital: capital
+          authorized_capital: capital,
+          directors: directors.map(name => ({ full_name: name, designation: 'Director' }))
         });
 
         activeDemoState = { stage: 'IDLE' };
@@ -76,7 +78,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           type: 'action_executed',
           workflow_type: 'COMPANY_INCORPORATION',
-          text: `Done. ${companyName} has been created in Future MCA. I've added the company, its directors, and the initial compliance workspace.`,
+          text: `Done. ${companyName} has been created in Future MCA. I've added the company, its directors, and the initial compliance workspace.\n\nCIN: ${result?.company?.cin || 'Assigned'}\nDirectors: ${directors.join(', ')}`,
           tools_used: ['create_company', 'get_company_profile']
         });
       }
