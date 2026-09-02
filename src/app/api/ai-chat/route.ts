@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ActionService } from '@/lib/services/actionService';
 import { CompanyService } from '@/lib/services/companyService';
 import { executeMcpTool } from '@/lib/mcp/tools';
 
@@ -41,8 +40,70 @@ const GEMINI_TOOLS = [
   {
     functionDeclarations: [
       {
+        name: 'fetch_company_details',
+        description: 'Fetch complete details of a company including registration, CIN, legal type, capital structure, directors, compliance summary, and recent filings.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            company_id_or_cin: { type: 'STRING', description: 'Name, CIN, or ID of the company' }
+          }
+        }
+      },
+      {
+        name: 'fetch_compliance',
+        description: 'Fetch real-time statutory MCA compliance status, overdue filings, form codes (DIR-12, AOC-4, MGT-7), upcoming deadlines, urgency levels, and penalty risks.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            company_id_or_cin: { type: 'STRING', description: 'Optional company name or CIN' },
+            urgency: { type: 'STRING', description: 'all, critical, action_required, upcoming' }
+          }
+        }
+      },
+      {
+        name: 'fetch_directors',
+        description: 'Fetch active and former directors, DIN numbers, KYC status, designations, and DSC validity for a company.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            company_id_or_cin: { type: 'STRING', description: 'Name or CIN of the company' }
+          }
+        }
+      },
+      {
+        name: 'fetch_all_companies',
+        description: 'Fetch all registered companies in the workspace/portfolio with their CINs, status, capital, and registered office.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            query: { type: 'STRING', description: 'Optional search keyword to filter companies' }
+          }
+        }
+      },
+      {
+        name: 'fetch_filings',
+        description: 'Fetch historical and pending MCA statutory e-Form filings, SRN reference numbers, filing fees, challans, and approval statuses.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            company_id_or_cin: { type: 'STRING', description: 'Company CIN or name' },
+            form_code: { type: 'STRING', description: 'Optional form code filter (e.g. DIR-12, SPICe+, AOC-4)' }
+          }
+        }
+      },
+      {
+        name: 'fetch_deadlines',
+        description: 'Fetch upcoming statutory MCA compliance deadlines, due dates, section references, and daily late fees.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            company_id_or_cin: { type: 'STRING', description: 'Optional CIN or company name' }
+          }
+        }
+      },
+      {
         name: 'create_company',
-        description: 'Create and incorporate a new company in the Future MCA registry and workspace portfolio. Call this whenever the user expresses intent to create, start, register, or incorporate a company.',
+        description: 'Create and incorporate a new company in the Future MCA registry and workspace portfolio.',
         parameters: {
           type: 'OBJECT',
           properties: {
@@ -69,36 +130,6 @@ const GEMINI_TOOLS = [
             }
           },
           required: ['company_name']
-        }
-      },
-      {
-        name: 'get_company_directors',
-        description: 'Get list of active and former directors for the company.',
-        parameters: {
-          type: 'OBJECT',
-          properties: {
-            company_name: { type: 'STRING', description: 'Name or CIN of the company' }
-          }
-        }
-      },
-      {
-        name: 'get_company_profile',
-        description: 'Get the full profile, registration, capital, and status of a company.',
-        parameters: {
-          type: 'OBJECT',
-          properties: {
-            company_name: { type: 'STRING', description: 'Name or CIN of the company' }
-          }
-        }
-      },
-      {
-        name: 'get_compliance_status',
-        description: 'Check upcoming and overdue statutory MCA compliance deadlines and filings.',
-        parameters: {
-          type: 'OBJECT',
-          properties: {
-            company_name: { type: 'STRING', description: 'Name or CIN of the company' }
-          }
         }
       },
       {
@@ -158,9 +189,18 @@ Current user context:
 - CIN: ${activeCompanyCin || 'N/A'}
 - Workspace: ${context.workspaceId || 'Default Workspace'}
 
-Your role is to help founders, business owners, and CAs interact with Indian MCA corporate filings seamlessly.
-When the user wants to take an action (such as creating/starting a company, adding a director, resigning a director, or checking records), call the appropriate tool.
-If the user provides parameters like capital, state, or company name, extract them accurately into the tool arguments.
+You have full access to MCA MCP tools for:
+- fetch_company_details: Get full master company data, capital, directors, and compliance summary
+- fetch_compliance: Get compliance status, critical overdue filings, form codes (DIR-12, AOC-4, MGT-7), and penalties
+- fetch_directors: Get board members, DIN numbers, KYC status, and DSC validity
+- fetch_all_companies: Get all companies registered in the user's workspace
+- fetch_filings: Get historical filings, SRN numbers, and challans
+- fetch_deadlines: Get upcoming statutory compliance deadlines
+- create_company: Incorporate a new company
+- add_director: Appoint a new director with DIN
+- process_director_resignation: Record director resignation and DIR-12 workflow
+
+When the user asks to fetch, view, check, or perform actions, call the corresponding tool.
 Always maintain a helpful, professional tone.`;
 
     const geminiPayload = [
@@ -182,7 +222,134 @@ Always maintain a helpful, professional tone.`;
       if (functionCallPart && functionCallPart.functionCall) {
         const { name: funcName, args: funcArgs = {} } = functionCallPart.functionCall;
 
-        // 1. CREATE COMPANY
+        // 1. FETCH COMPANY DETAILS
+        if (funcName === 'fetch_company_details' || funcName === 'get_company_profile') {
+          const target = funcArgs.company_id_or_cin || activeCompanyCin || activeCompanyName;
+          const res = await executeMcpTool('fetch_company_details', { company_id_or_cin: target }, { workspaceId: context.workspaceId });
+          const comp = res?.company;
+          if (!comp) {
+            return NextResponse.json({
+              type: 'chat_response',
+              text: 'No registered company found. You can ask me to "create a company" to get started.',
+              tools_used: ['gemini_api', 'fetch_company_details']
+            });
+          }
+          const dirsText = comp.directors?.length 
+            ? comp.directors.map((d: any) => `• **${d.name}** (DIN: ${d.din}) — ${d.status}`).join('\n')
+            : 'None registered';
+
+          return NextResponse.json({
+            type: 'company_profile',
+            text: `### 🏢 Company Profile: ${comp.name}\n\n• **CIN**: \`${comp.cin}\`\n• **Type**: ${comp.legal_type || comp.company_type}\n• **Status**: **${comp.status}**\n• **ROC Jurisdiction**: ${comp.roc_jurisdiction || 'ROC Chennai'}\n• **Registered Office**: ${comp.registered_office}\n• **Authorized Capital**: ${comp.authorized_capital}\n• **Paid-Up Capital**: ${comp.paid_up_capital}\n\n**Board of Directors**:\n${dirsText}\n\n**Compliance Summary**:\n• Status: ${comp.compliance_status || comp.compliance_summary?.status || 'Active'}\n• Pending Actions: ${comp.compliance_summary?.pending_actions || 0}`,
+            tools_used: ['gemini_api', 'fetch_company_details']
+          });
+        }
+
+        // 2. FETCH COMPLIANCE
+        if (funcName === 'fetch_compliance' || funcName === 'get_compliance_status') {
+          const target = funcArgs.company_id_or_cin || activeCompanyCin || activeCompanyName;
+          const res = await executeMcpTool('fetch_compliance', { company_id_or_cin: target, urgency: funcArgs.urgency }, { workspaceId: context.workspaceId });
+          const deadlines = res?.deadlines || [];
+          const summary = res?.summary || {};
+          const listText = deadlines.length > 0 
+            ? deadlines.map((d: any) => `• **${d.title}** (\`${d.form_code}\`) — Status: **${d.status}** | Due: ${d.due_date} | Section: ${d.statutory_section || 'Companies Act'}`).join('\n')
+            : 'All statutory MCA filings are currently up to date with zero overdue penalties.';
+
+          return NextResponse.json({
+            type: 'compliance_deadlines',
+            text: `### 📋 Statutory Compliance: ${res?.company || activeCompanyName}\n\n• **Risk Assessment**: **${summary.risk_level || 'HEALTHY'}**\n• **Critical Deadlines**: ${summary.critical || 0}\n• **Action Required**: ${summary.action_required || 0}\n• **Upcoming**: ${summary.upcoming || 0}\n\n**Deadlines & Filings**:\n${listText}`,
+            tools_used: ['gemini_api', 'fetch_compliance']
+          });
+        }
+
+        // 3. FETCH DIRECTORS
+        if (funcName === 'fetch_directors' || funcName === 'get_company_directors') {
+          const target = funcArgs.company_id_or_cin || activeCompanyCin || activeCompanyName;
+          const res = await executeMcpTool('fetch_directors', { company_id_or_cin: target }, { workspaceId: context.workspaceId });
+          const active = res?.active_directors || [];
+          const former = res?.former_directors || [];
+
+          let text = `### 👥 Board of Directors for ${res?.company || activeCompanyName}\n\n`;
+          if (active.length > 0) {
+            text += `**Active Directors**:\n` + active.map((d: any) => `• **${d.name}** (DIN: \`${d.din}\`) — ${d.designation} [KYC: ${d.kyc_status || 'COMPLIANT'}, DSC: ${d.dsc_status || 'ACTIVE'}]`).join('\n') + '\n\n';
+          }
+          if (former.length > 0) {
+            text += `**Former / Resigned Directors**:\n` + former.map((d: any) => `• **${d.name}** (DIN: \`${d.din}\`) — Resigned effective ${d.effective_date}`).join('\n');
+          }
+          if (active.length === 0 && former.length === 0) {
+            text += 'No directors currently registered for this company.';
+          }
+
+          return NextResponse.json({
+            type: 'directors_list',
+            text: text.trim(),
+            tools_used: ['gemini_api', 'fetch_directors']
+          });
+        }
+
+        // 4. FETCH ALL COMPANIES
+        if (funcName === 'fetch_all_companies' || funcName === 'search_company') {
+          const res = await executeMcpTool('fetch_all_companies', { query: funcArgs.query }, { workspaceId: context.workspaceId });
+          const companies = res?.companies || [];
+          if (companies.length === 0) {
+            return NextResponse.json({
+              type: 'chat_response',
+              text: 'You do not have any registered companies in this workspace yet. Would you like to incorporate one?',
+              tools_used: ['gemini_api', 'fetch_all_companies']
+            });
+          }
+          const listText = companies.map((c: any) => `• **${c.name}**\n  - CIN: \`${c.cin}\`\n  - Type: ${c.legal_type}\n  - Status: ${c.status}\n  - ROC: ${c.roc_jurisdiction}\n  - Capital: ₹${(c.authorized_capital || 1000000).toLocaleString('en-IN')}`).join('\n\n');
+
+          return NextResponse.json({
+            type: 'chat_response',
+            text: `### 🏢 Registered Companies (${companies.length})\n\n${listText}`,
+            tools_used: ['gemini_api', 'fetch_all_companies']
+          });
+        }
+
+        // 5. FETCH FILINGS
+        if (funcName === 'fetch_filings') {
+          const target = funcArgs.company_id_or_cin || activeCompanyCin || activeCompanyName;
+          const res = await executeMcpTool('fetch_filings', { company_id_or_cin: target, form_code: funcArgs.form_code }, { workspaceId: context.workspaceId });
+          const filings = res?.filings || [];
+          if (filings.length === 0) {
+            return NextResponse.json({
+              type: 'chat_response',
+              text: `No filed forms found for **${res?.company || activeCompanyName}**.`,
+              tools_used: ['gemini_api', 'fetch_filings']
+            });
+          }
+          const listText = filings.map((f: any) => `• **${f.form_title}**\n  - SRN: \`${f.srn}\`\n  - Status: **${f.status}**\n  - Submitted: ${f.submitted_at ? new Date(f.submitted_at).toLocaleDateString() : 'Recent'}`).join('\n\n');
+
+          return NextResponse.json({
+            type: 'chat_response',
+            text: `### 📑 Filing Records for ${res?.company || activeCompanyName}\n\n${listText}`,
+            tools_used: ['gemini_api', 'fetch_filings']
+          });
+        }
+
+        // 6. FETCH DEADLINES
+        if (funcName === 'fetch_deadlines') {
+          const target = funcArgs.company_id_or_cin || activeCompanyCin || activeCompanyName;
+          const res = await executeMcpTool('fetch_deadlines', { company_id_or_cin: target }, { workspaceId: context.workspaceId });
+          const deadlines = res?.deadlines || [];
+          if (deadlines.length === 0) {
+            return NextResponse.json({
+              type: 'compliance_deadlines',
+              text: `All compliance deadlines for **${activeCompanyName}** are fully completed.`,
+              tools_used: ['gemini_api', 'fetch_deadlines']
+            });
+          }
+          const listText = deadlines.map((d: any) => `• **${d.title}** (\`${d.form_code}\`) — Due: **${d.due_date}** (${d.days_remaining > 0 ? `${d.days_remaining} days left` : 'Due now'}) | Late Fee: ₹${d.per_day_penalty || 100}/day`).join('\n');
+
+          return NextResponse.json({
+            type: 'compliance_deadlines',
+            text: `### ⏰ Upcoming MCA Compliance Deadlines\n\n${listText}`,
+            tools_used: ['gemini_api', 'fetch_deadlines']
+          });
+        }
+
+        // 7. CREATE COMPANY
         if (funcName === 'create_company') {
           const compName = funcArgs.company_name || rawText.replace(/create an? company called?/i, '').trim();
           const compType = funcArgs.company_type || 'Private Limited Company';
@@ -211,83 +378,7 @@ Always maintain a helpful, professional tone.`;
           });
         }
 
-        // 2. GET COMPANY DIRECTORS
-        if (funcName === 'get_company_directors') {
-          const cinToUse = activeCompanyCin;
-          if (!cinToUse) {
-            return NextResponse.json({
-              type: 'chat_response',
-              text: 'No active company found in your workspace yet. You can ask me to "create a company" to get started.',
-              tools_used: ['gemini_api']
-            });
-          }
-          const res = await executeMcpTool('get_company_directors', { cin: cinToUse }, { workspaceId: context.workspaceId });
-          const active = res.active_directors || [];
-          const former = res.former_directors || [];
-          let text = '';
-          if (active.length === 0 && former.length === 0) {
-            text = `No directors currently registered for **${res.company || activeCompanyName}**.`;
-          } else if (former.length > 0) {
-            text = `**ACTIVE DIRECTORS**\n\n${active.map((d: any) => `• **${d.name}** (DIN: ${d.din}) — ${d.status}`).join('\n')}\n\n**FORMER DIRECTORS**\n\n${former.map((d: any) => `• **${d.name}** — ${d.status} (Effective: ${d.effective_date})`).join('\n')}`;
-          } else {
-            text = `**Active Directors for ${res.company || activeCompanyName}**:\n\n${active.map((d: any) => `• **${d.name}** (DIN: ${d.din}) — ${d.status}`).join('\n')}`;
-          }
-          return NextResponse.json({
-            type: 'directors_list',
-            text,
-            tools_used: ['gemini_api', 'get_company_directors']
-          });
-        }
-
-        // 3. GET COMPANY PROFILE
-        if (funcName === 'get_company_profile') {
-          const cinToUse = activeCompanyCin;
-          if (!cinToUse) {
-            return NextResponse.json({
-              type: 'chat_response',
-              text: 'No registered company found in this workspace. Ask me to create a company to begin.',
-              tools_used: ['gemini_api']
-            });
-          }
-          const profile = await executeMcpTool('get_company_profile', { cin: cinToUse }, { workspaceId: context.workspaceId });
-          const comp = profile?.company;
-          if (!comp) {
-            return NextResponse.json({
-              type: 'chat_response',
-              text: 'Could not retrieve company profile at this time.',
-              tools_used: ['gemini_api']
-            });
-          }
-          return NextResponse.json({
-            type: 'company_profile',
-            text: `**Company Profile: ${comp.name}**\n\n• **CIN**: \`${comp.cin}\`\n• **Type**: ${comp.company_type}\n• **Status**: ${comp.status}\n• **Authorised Capital**: ${comp.authorized_capital}\n• **Registered Office**: ${comp.registered_office}\n• **Directors**: ${comp.directors?.length ? comp.directors.map((d: any) => d.name).join(', ') : 'None listed'}\n• **Compliance**: ${comp.compliance_status}`,
-            tools_used: ['gemini_api', 'get_company_profile']
-          });
-        }
-
-        // 4. GET COMPLIANCE STATUS
-        if (funcName === 'get_compliance_status') {
-          const cinToUse = activeCompanyCin;
-          if (!cinToUse) {
-            return NextResponse.json({
-              type: 'compliance_deadlines',
-              text: 'No active company selected. You have no pending compliance deadlines.',
-              tools_used: ['gemini_api']
-            });
-          }
-          const status = await executeMcpTool('get_compliance_status', { cin: cinToUse }, { workspaceId: context.workspaceId });
-          const deadlines = status.deadlines || [];
-          const listText = deadlines.length > 0 
-            ? deadlines.map((d: any) => `• **${d.title}** (${d.form_code}) — Status: **${d.status}** | Due: ${d.due_date}`).join('\n')
-            : 'All statutory MCA filings are currently up to date.';
-          return NextResponse.json({
-            type: 'compliance_deadlines',
-            text: `**Compliance Status for ${activeCompanyName || 'your company'}**:\n\n${listText}`,
-            tools_used: ['gemini_api', 'get_compliance_status']
-          });
-        }
-
-        // 5. PROCESS DIRECTOR RESIGNATION
+        // 8. PROCESS DIRECTOR RESIGNATION
         if (funcName === 'process_director_resignation') {
           const dirName = funcArgs.director_name || 'Director';
           const effDate = funcArgs.effective_date || new Date().toISOString().split('T')[0];
@@ -306,11 +397,11 @@ Always maintain a helpful, professional tone.`;
           });
         }
 
-        // 6. ADD DIRECTOR
+        // 9. ADD DIRECTOR
         if (funcName === 'add_director') {
           const dirName = funcArgs.director_name || 'New Director';
           const genDin = `09${Math.floor(100000 + Math.random() * 900000)}`;
-          const added = await CompanyService.addDirector(activeCompanyCin || 'comp_new', {
+          await CompanyService.addDirector(activeCompanyCin || 'comp_new', {
             full_name: dirName,
             din: genDin,
             designation: 'Director',
@@ -340,7 +431,7 @@ Always maintain a helpful, professional tone.`;
     // Fallback if Gemini did not respond
     return NextResponse.json({
       type: 'chat_response',
-      text: `I'm Founders AI, your corporate copilot for **${activeCompanyName || 'MCA operations'}**. I can help you incorporate companies, add or resign directors, and check statutory filings. What would you like to do?`,
+      text: `I'm Founders AI, your corporate copilot for **${activeCompanyName || 'MCA operations'}**. I can help you fetch company details, check compliance, view directors, or incorporate a company. What would you like to do?`,
       tools_used: ['fallback']
     });
 

@@ -18,8 +18,76 @@ export interface ToolDefinition {
 
 export const MCP_TOOLS: ToolDefinition[] = [
   // ==========================================
-  // LEVEL 1: READ TOOLS (Safe, immediate execution)
+  // LEVEL 1: READ & FETCH TOOLS (Safe, immediate execution)
   // ==========================================
+  {
+    name: 'fetch_company_details',
+    category: 'LEVEL_1_READ',
+    description: 'Fetch comprehensive master data for an Indian company including registration info, CIN, ROC jurisdiction, authorized and paid-up capital, active directors with DINs, compliance score, and filing records.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        company_id_or_cin: { type: 'string', description: 'Corporate Identification Number (CIN), Company ID, or company name' }
+      }
+    }
+  },
+  {
+    name: 'fetch_compliance',
+    category: 'LEVEL_1_READ',
+    description: 'Fetch real-time statutory MCA compliance status, overdue filings, form codes (DIR-12, AOC-4, MGT-7), upcoming deadlines, urgency levels, and penalty calculations for a company.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        company_id_or_cin: { type: 'string', description: 'Optional CIN or company name' },
+        urgency: { type: 'string', enum: ['all', 'critical', 'action_required', 'upcoming'], description: 'Optional urgency filter' }
+      }
+    }
+  },
+  {
+    name: 'fetch_directors',
+    category: 'LEVEL_1_READ',
+    description: 'Fetch active and former directors of a company, including DIN numbers, designations, KYC statuses, appointment dates, and DSC validity.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        company_id_or_cin: { type: 'string', description: 'Corporate Identification Number (CIN), company ID, or name' }
+      }
+    }
+  },
+  {
+    name: 'fetch_all_companies',
+    category: 'LEVEL_1_READ',
+    description: 'Fetch all companies registered in the user workspace/portfolio with their CINs, status, capital, and registered office.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Optional search keyword to filter companies' }
+      }
+    }
+  },
+  {
+    name: 'fetch_filings',
+    category: 'LEVEL_1_READ',
+    description: 'Fetch historical and pending MCA statutory e-Form filings, SRN reference numbers, filing fees, challans, and approval statuses for a company.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        company_id_or_cin: { type: 'string', description: 'Company CIN, ID, or name' },
+        form_code: { type: 'string', description: 'Optional form code filter (e.g. DIR-12, SPICe+, AOC-4)' }
+      }
+    }
+  },
+  {
+    name: 'fetch_deadlines',
+    category: 'LEVEL_1_READ',
+    description: 'Fetch upcoming statutory MCA compliance deadlines, due dates, section references, and daily late fees.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        company_id_or_cin: { type: 'string', description: 'Optional CIN or company name' }
+      }
+    }
+  },
   {
     name: 'search_company',
     category: 'LEVEL_1_READ',
@@ -452,9 +520,12 @@ export async function executeMcpTool(
     // ----------------------------------------------------
     // LEVEL 1: READ TOOLS
     // ----------------------------------------------------
+    case 'fetch_all_companies':
+    case 'fetch_companies':
+    case 'list_companies':
     case 'search_company': {
       const companies = await CompanyService.listCompanies(context.workspaceId);
-      const q = (args.query || '').toLowerCase().trim();
+      const q = (args.query || args.search || '').toLowerCase().trim();
       const results = q 
         ? companies.filter(c => 
             c.name.toLowerCase().includes(q) || 
@@ -464,14 +535,27 @@ export async function executeMcpTool(
         : companies;
 
       return { 
-        companies: results, 
+        companies: results.map(c => ({
+          id: c.id,
+          name: c.name,
+          cin: c.cin,
+          legal_type: c.legal_type,
+          status: c.status,
+          roc_jurisdiction: c.roc_jurisdiction,
+          registered_office: c.registered_office,
+          authorized_capital: c.authorized_capital,
+          paid_up_capital: c.paid_up_capital,
+          directors_count: c.directors?.length || 0
+        })), 
         total: results.length, 
         workspace_id: context.workspaceId || null,
         message: results.length === 0 ? 'No registered companies found in this workspace.' : undefined
       };
     }
+    case 'fetch_company_details':
+    case 'get_company_details':
     case 'get_company_profile': {
-      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
+      const target = (args.company_id_or_cin || args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
       let company = target ? await CompanyService.getCompanyByCin(target, context.workspaceId) : null;
       if (!company) {
         const all = await CompanyService.listCompanies(context.workspaceId);
@@ -483,8 +567,12 @@ export async function executeMcpTool(
         };
       }
       const rawDirectors = await CompanyService.getCompanyDirectors(company.id || company.cin);
+      const deadlines = await ComplianceService.listCompliance({ companyId: company.id || company.cin }).catch(() => []);
+      const filings = await FilingService.listApplications(company.id).catch(() => []);
+
       return {
         company: {
+          id: company.id,
           name: company.name,
           cin: company.cin,
           company_type: company.legal_type || 'Private Limited Company',
@@ -496,14 +584,31 @@ export async function executeMcpTool(
           directors: rawDirectors.map((d: any) => ({
             name: d.full_name,
             din: d.din,
-            status: (d.status === 'RESIGNED' || d.cessation_date) ? 'Resigned' : 'Active'
+            designation: d.designation || 'Director',
+            status: (d.status === 'RESIGNED' || d.cessation_date) ? 'Resigned' : 'Active',
+            kyc_status: d.kyc_status || 'COMPLIANT',
+            dsc_status: d.dsc_status || 'ACTIVE'
           })),
-          compliance_status: company.next_action || 'Statutory compliance tracking active'
+          compliance_status: company.next_action || 'Statutory compliance tracking active',
+          compliance_summary: {
+            critical_deadlines: deadlines.filter(d => d.urgency === 'critical').length,
+            pending_actions: deadlines.filter(d => d.urgency === 'action_required').length,
+            upcoming_deadlines: deadlines.filter(d => d.urgency === 'upcoming').length,
+            status: company.next_action || 'Healthy'
+          },
+          recent_filings: filings.slice(0, 5).map(f => ({
+            application_no: f.application_no,
+            title: f.title,
+            status: f.status,
+            submitted_at: f.submitted_at
+          }))
         }
       };
     }
+    case 'fetch_directors':
+    case 'fetch_company_directors':
     case 'get_company_directors': {
-      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
+      const target = (args.company_id_or_cin || args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
       let company = target ? await CompanyService.getCompanyByCin(target, context.workspaceId) : null;
       if (!company) {
         const all = await CompanyService.listCompanies(context.workspaceId);
@@ -522,7 +627,9 @@ export async function executeMcpTool(
           name: d.full_name,
           din: d.din,
           designation: d.designation || 'Director',
-          status: 'Active'
+          status: 'Active',
+          kyc_status: d.kyc_status || 'COMPLIANT',
+          dsc_status: d.dsc_status || 'ACTIVE'
         })),
         former_directors: formerDirectors.map(d => ({
           name: d.full_name,
@@ -540,19 +647,30 @@ export async function executeMcpTool(
         })),
         total: rawDirectors.length,
         summary_view: formerDirectors.length > 0
-          ? `ACTIVE DIRECTORS:\n${activeDirectors.map(d => `• ${d.full_name} — Active`).join('\n')}\n\nFORMER DIRECTORS:\n${formerDirectors.map(d => `• ${d.full_name}\n  Status: Resigned\n  Effective Date: ${d.cessation_date || 'N/A'}`).join('\n')}`
-          : activeDirectors.map(d => `• ${d.full_name} — Active`).join('\n')
+          ? `ACTIVE DIRECTORS:\n${activeDirectors.map(d => `• ${d.full_name} (DIN: ${d.din}) — Active`).join('\n')}\n\nFORMER DIRECTORS:\n${formerDirectors.map(d => `• ${d.full_name}\n  Status: Resigned\n  Effective Date: ${d.cessation_date || 'N/A'}`).join('\n')}`
+          : activeDirectors.map(d => `• ${d.full_name} (DIN: ${d.din}) — Active`).join('\n')
       };
     }
+    case 'fetch_compliance':
+    case 'fetch_compliance_status':
+    case 'fetch_compliance_details':
     case 'get_compliance_status': {
-      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
+      const target = (args.company_id_or_cin || args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
+      let company = target ? await CompanyService.getCompanyByCin(target, context.workspaceId) : null;
+      if (!company) {
+        const all = await CompanyService.listCompanies(context.workspaceId);
+        if (all.length > 0) company = all[0];
+      }
+      const companyId = company ? (company.id || company.cin) : target;
       const deadlines = await ComplianceService.listCompliance({
-        companyId: target || undefined,
+        companyId: companyId || undefined,
         urgency: args.urgency
       }).catch(() => []);
       const criticalCount = deadlines.filter(d => d.urgency === 'critical').length;
       const actionCount = deadlines.filter(d => d.urgency === 'action_required').length;
       return {
+        company: company?.name || 'Company',
+        cin: company?.cin || target,
         deadlines,
         summary: {
           critical: criticalCount,
@@ -562,13 +680,46 @@ export async function executeMcpTool(
         }
       };
     }
+    case 'fetch_filings':
+    case 'fetch_filing_history':
+    case 'get_filings': {
+      const target = (args.company_id_or_cin || args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
+      let company = target ? await CompanyService.getCompanyByCin(target, context.workspaceId) : null;
+      if (!company) {
+        const all = await CompanyService.listCompanies(context.workspaceId);
+        if (all.length > 0) company = all[0];
+      }
+      const companyId = company ? (company.id || company.cin) : target;
+      const applications = await FilingService.listApplications(companyId).catch(() => []);
+      
+      const filtered = args.form_code 
+        ? applications.filter(a => (a.title || '').toLowerCase().includes(args.form_code.toLowerCase()))
+        : applications;
+
+      return {
+        company: company?.name || 'Company',
+        cin: company?.cin || target,
+        filings: filtered.map(a => ({
+          srn: a.application_no,
+          form_title: a.title,
+          status: a.status,
+          type: a.type,
+          submitted_at: a.submitted_at,
+          updated_at: a.updated_at,
+          remarks: a.remarks
+        })),
+        total: filtered.length
+      };
+    }
+    case 'fetch_deadlines':
+    case 'fetch_upcoming_deadlines':
     case 'get_upcoming_deadlines': {
-      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
+      const target = (args.company_id_or_cin || args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
       const deadlines = await ComplianceService.getUpcomingDeadlines(target || undefined).catch(() => []);
       return { deadlines, total: deadlines.length };
     }
     case 'get_next_required_action': {
-      const target = (args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
+      const target = (args.company_id_or_cin || args.cin || args.company_name || args.name || args.query || args.company || args.id || '').trim();
       const company = target ? await CompanyService.getCompanyByCin(target, context.workspaceId) : null;
       const critical = await ComplianceService.getCriticalActions(target || undefined);
       if (critical.length > 0) {
