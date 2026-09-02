@@ -7,7 +7,8 @@ import { AppShell } from '@/components/layout/AppShell';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { ComplianceService } from '@/lib/services/complianceService';
 import { FilingService } from '@/lib/services/filingService';
-import { ComplianceDeadline, Application } from '@/types';
+import { CompanyService } from '@/lib/services/companyService';
+import { ComplianceDeadline, Application, Company } from '@/types';
 import { 
   AlertTriangle, 
   Building2, 
@@ -43,8 +44,22 @@ export default function OverviewDashboard() {
   const [loading, setLoading] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState<'all' | 'critical' | 'action_required' | 'upcoming'>('all');
+  const [extraCompanies, setExtraCompanies] = useState<Company[]>([]);
 
-  const companiesList = allCompanies.length > 0 ? allCompanies : PORTFOLIO_COMPANIES;
+  useEffect(() => {
+    CompanyService.listCompanies().then((res: Company[]) => {
+      if (res && res.length > 0) setExtraCompanies(res);
+    }).catch(() => {});
+  }, []);
+
+  const combinedList = [...extraCompanies, ...allCompanies, ...PORTFOLIO_COMPANIES];
+  const seenNames = new Set<string>();
+  const companiesList = combinedList.filter(c => {
+    const key = (c.name || '').toLowerCase().trim();
+    if (seenNames.has(key)) return false;
+    seenNames.add(key);
+    return true;
+  });
   const caName = profile?.persona === 'professional' ? profile?.full_name : 'Ananya Krishnan';
 
   useEffect(() => {

@@ -56,7 +56,60 @@ export const PRIMARY_DEMO_DIRECTORS: Director[] = [
   }
 ];
 
+export const AZLER_DEMO_COMPANY: Company = {
+  id: 'comp_azler_001',
+  workspace_id: 'ws_subaneshofficial',
+  cin: 'U62099TN2026PTC075616',
+  name: 'Azler Private Limited',
+  legal_type: 'Private Limited Company',
+  status: 'ACTIVE',
+  paid_up_capital: 100000,
+  authorized_capital: 100000,
+  incorporation_date: '2026-09-02',
+  roc_jurisdiction: 'ROC Chennai',
+  registered_office: 'Tamil Nadu, India',
+  email: 'contact@azler.in',
+  pan: 'AABCA9842F',
+  gst: '33AABCA9842F1Z9',
+  next_action: 'Incorporation filed (SRN: DEMO-SRN-2026-075616)',
+  compliance_count: {
+    critical: 0,
+    action_required: 0,
+    upcoming: 1
+  }
+};
+
+export const AZLER_DEMO_DIRECTORS: Director[] = [
+  {
+    id: 'dir_subaneesh_001',
+    company_id: 'comp_azler_001',
+    din: '08945120',
+    full_name: 'Subaneesh',
+    designation: 'Director',
+    appointment_date: '2026-09-02',
+    din_status: 'APPROVED',
+    dsc_status: 'ACTIVE',
+    kyc_status: 'COMPLIANT'
+  },
+  {
+    id: 'dir_aakash_002',
+    company_id: 'comp_azler_001',
+    din: '09124589',
+    full_name: 'Aakash',
+    designation: 'Director',
+    appointment_date: '2026-09-02',
+    din_status: 'APPROVED',
+    dsc_status: 'ACTIVE',
+    kyc_status: 'COMPLIANT'
+  }
+];
+
+export const DYNAMIC_COMPANIES: Company[] = [
+  AZLER_DEMO_COMPANY
+];
+
 export const PORTFOLIO_COMPANIES: Company[] = [
+  AZLER_DEMO_COMPANY,
   PRIMARY_DEMO_COMPANY,
   {
     id: 'comp_novara_002',

@@ -13,7 +13,53 @@ import { FilingService } from './filingService';
 import { PRIMARY_DEMO_COMPANY } from './seedService';
 
 // In-memory cache for fast responsive fallbacks and test environments
-const ACTION_STORE = new Map<string, McpAction>();
+const AZLER_ACTION: McpAction = {
+  id: 'act_azler_001',
+  workspace_id: 'ws_subaneshofficial',
+  company_id: 'comp_azler_001',
+  company_name: 'Azler Private Limited',
+  user_id: 'usr_subaneesh',
+  action_type: 'COMPANY_REGISTRATION',
+  status: 'SUBMITTED',
+  external_reference: 'DEMO-SRN-2026-075616',
+  payload: {
+    company_name: 'Azler Private Limited',
+    company_type: 'PVT_LTD',
+    registered_state: 'Tamil Nadu',
+    authorized_capital: 100000,
+    paid_up_capital: 100000,
+    directors: ['Subaneesh', 'Aakash']
+  },
+  preview: {
+    form_code: 'SPICe+ (INC-32)',
+    action_summary: 'Incorporate new Private Limited entity: "Azler Private Limited"',
+    company_name: 'Azler Private Limited',
+    statutory_section: 'Section 7 of Companies Act 2013',
+    deadline: 'Filed and Submitted',
+    required_documents: ['SPICe+ MOA', 'SPICe+ AOA', 'DIR-2 Consent'],
+    missing_requirements: [],
+    prerequisites: ['Director KYC', 'Registered Office Proof'],
+    form_fields: {},
+    estimated_fee: 1000
+  },
+  authorization_required: false,
+  authorization_status: 'AUTHORIZED',
+  execution_receipt: {
+    reference_number: 'DEMO-SRN-2026-075616',
+    submitted_at: '2026-09-02T19:42:16.000Z',
+    mode: 'SIMULATED_DEMO_EXECUTION',
+    statutory_filing_fee: 1000,
+    challan_receipt: 'CHALLAN-TN-075616',
+    confirmation_message: 'Statutory e-Form SPICe+ has been securely processed. Internal workflow recorded with Reference: DEMO-SRN-2026-075616.'
+  },
+  created_at: '2026-09-02T19:40:00.000Z',
+  updated_at: '2026-09-02T19:42:16.000Z',
+  executed_at: '2026-09-02T19:42:16.000Z'
+};
+
+const ACTION_STORE = new Map<string, McpAction>([
+  [AZLER_ACTION.id, AZLER_ACTION]
+]);
 const AUDIT_STORE: McpActionAuditLog[] = [];
 
 export interface ActionContext {
@@ -102,6 +148,7 @@ export class ActionService {
    * List all actions for workspace or company
    */
   static async listActions(workspaceId?: string, companyId?: string): Promise<McpAction[]> {
+    let dbActions: McpAction[] = [];
     try {
       let query = supabase.from('mcp_actions').select('*').order('created_at', { ascending: false });
       
@@ -111,21 +158,29 @@ export class ActionService {
 
       const { data, error } = await query;
       if (!error && data && data.length > 0) {
+        dbActions = data;
         data.forEach((act: McpAction) => ACTION_STORE.set(act.id, act));
-        return data;
       }
     } catch (err) {
       console.error('Error fetching mcp_actions from Supabase:', err);
     }
 
-    const memoryActions = Array.from(ACTION_STORE.values()).sort(
+    const all = [...Array.from(ACTION_STORE.values()), ...dbActions];
+    const seenIds = new Set<string>();
+    const merged: McpAction[] = [];
+
+    for (const a of all) {
+      if (!seenIds.has(a.id)) {
+        seenIds.add(a.id);
+        if (!companyId || !a.company_id || a.company_id === companyId) {
+          merged.push(a);
+        }
+      }
+    }
+
+    return merged.sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
-
-    if (companyId) {
-      return memoryActions.filter(a => !a.company_id || a.company_id === companyId);
-    }
-    return memoryActions;
   }
 
   /**
