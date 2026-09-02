@@ -8,6 +8,7 @@ import {
   LayoutDashboard, 
   Building2, 
   ShieldAlert, 
+  ShieldCheck,
   FileText, 
   GitPullRequest, 
   HelpCircle, 
@@ -38,6 +39,11 @@ export function Sidebar() {
       icon: Building2
     },
     {
+      label: 'Actions & Approvals',
+      href: '/actions',
+      icon: ShieldCheck
+    },
+    {
       label: 'Compliance',
       href: '/compliance',
       icon: ShieldAlert,
@@ -59,6 +65,7 @@ export function Sidebar() {
       icon: HelpCircle
     },
   ];
+
 
   const secondaryNavItems = [
     {

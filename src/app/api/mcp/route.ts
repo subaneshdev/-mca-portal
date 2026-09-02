@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-mcp-version, mcp-session-id, baggage, sentry-trace',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-mcp-version, mcp-session-id, x-mcp-client, baggage, sentry-trace',
   'Content-Type': 'application/json'
 };
 
@@ -16,10 +16,15 @@ export async function GET(request: NextRequest) {
     jsonrpc: '2.0',
     server: {
       name: 'future-mca-mcp-server',
-      version: '1.0.0',
-      description: 'Future MCA Remote Model Context Protocol Server for Autonomous Corporate Compliance Agents',
-      tagline: 'Government services, ready for humans and AI agents.',
-      auth_type: 'OAuth 2.1 / Bearer Scoped'
+      version: '2.0.0',
+      description: 'Future MCA Remote Model Context Protocol Server with Autonomous Post-Action Capabilities',
+      tagline: 'Ask AI to securely get things done for your company.',
+      capabilities_level: {
+        level_1: 'Read Tools (Safe, immediate contextual retrieval)',
+        level_2: 'Prepare Tools (Drafting & preview generation, zero direct mutation)',
+        level_3: 'Lifecycle & Execution (Explicit confirmation, DSC/Board authorization, idempotent execution)'
+      },
+      auth_type: 'OAuth 2.1 / Bearer Scoped / Workspace Isolation'
     },
     capabilities: {
       tools: {
@@ -31,6 +36,7 @@ export async function GET(request: NextRequest) {
     tools: MCP_TOOLS,
     endpoints: {
       mcp_rpc: '/api/mcp',
+      actions_hub: '/actions',
       docs: '/connect-ai'
     }
   }, {
@@ -52,7 +58,7 @@ export async function POST(request: NextRequest) {
           protocolVersion: '2024-11-05',
           serverInfo: {
             name: 'future-mca-mcp-server',
-            version: '1.0.0'
+            version: '2.0.0'
           },
           capabilities: {
             tools: {
@@ -64,7 +70,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (method === 'notifications/initialized' || method?.startsWith('notifications/')) {
-      // MCP notifications do not require a result body, return 200 OK
       return NextResponse.json({ jsonrpc: '2.0', id, result: {} }, { headers: CORS_HEADERS });
     }
 
@@ -97,10 +102,31 @@ export async function POST(request: NextRequest) {
         }, { headers: CORS_HEADERS });
       }
 
-      // Extract OAuth Bearer token if provided
+      // Extract client info and OAuth Bearer token if provided
       let workspaceId: string | undefined = undefined;
       let userId: string | undefined = undefined;
       const authHeader = request.headers.get('authorization') || '';
+      const userAgent = request.headers.get('user-agent') || '';
+      const customClient = request.headers.get('x-mcp-client') || '';
+
+      let clientName = 'Custom Agent';
+      let clientType = 'MCP_CLIENT';
+
+      if (customClient) {
+        clientName = customClient;
+      } else if (userAgent.toLowerCase().includes('claude')) {
+        clientName = 'Claude Desktop / Code';
+        clientType = 'Anthropic Claude';
+      } else if (userAgent.toLowerCase().includes('cursor')) {
+        clientName = 'Cursor AI IDE';
+        clientType = 'Cursor Agent';
+      } else if (userAgent.toLowerCase().includes('chatgpt') || userAgent.toLowerCase().includes('openai')) {
+        clientName = 'ChatGPT';
+        clientType = 'OpenAI Custom GPT';
+      } else if (userAgent.toLowerCase().includes('antigravity')) {
+        clientName = 'Antigravity IDE';
+        clientType = 'Google Antigravity';
+      }
 
       if (authHeader.startsWith('Bearer ')) {
         const token = authHeader.replace('Bearer ', '').trim();
@@ -117,7 +143,13 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const output = await executeMcpTool(toolName, toolArguments, { workspaceId, userId });
+        const output = await executeMcpTool(toolName, toolArguments, {
+          workspaceId,
+          userId,
+          actorType: 'AI_CLIENT',
+          clientName,
+          clientType
+        });
         const isErrorOutput = output && typeof output === 'object' && 'error' in output;
 
         return NextResponse.json({
@@ -134,7 +166,6 @@ export async function POST(request: NextRequest) {
           }
         }, { headers: CORS_HEADERS });
       } catch (err: any) {
-        // Return structured MCP isError content so Claude can read the error message gracefully
         return NextResponse.json({
           jsonrpc: '2.0',
           id,

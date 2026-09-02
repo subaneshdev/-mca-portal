@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DiagnosticService } from '@/lib/services/diagnosticService';
 import { FilingService } from '@/lib/services/filingService';
 import { ComplianceService } from '@/lib/services/complianceService';
+import { ActionService } from '@/lib/services/actionService';
 
 export const runtime = 'nodejs';
 
@@ -20,7 +21,7 @@ async function callGemini(prompt: string, contextPrompt: string): Promise<string
             role: 'user',
             parts: [
               {
-                text: `You are Future MCA Autonomous Copilot, an expert AI assistant on Indian Corporate Law (Companies Act 2013, LLP Act 2008, MCA V3 portal forms, RoC filings, Secretarial Standards, and Board Governance).
+                text: `You are Future MCA Autonomous Copilot, an expert AI assistant on Indian Corporate Law (Companies Act 2013, LLP Act 2008, MCA V3 portal forms, RoC filings, Secretarial Standards, Board Governance, and the MCP Post-Action Protocol).
 
 Active Company Context:
 ${contextPrompt}
@@ -31,8 +32,8 @@ User Question / Command:
 Instructions:
 1. Provide accurate, professional, well-formatted markdown answers.
 2. Cite relevant statutory sections (e.g. Section 168, Section 137, Rule 12A), required MCA e-Forms (DIR-12, AOC-4, MGT-7, SPICe+), and strict deadline timelines.
-3. Give practical, step-by-step guidance that founders and compliance officers can execute immediately.
-4. Keep the tone helpful, sharp, and authoritative without unnecessary fluff.`
+3. If the user asks to prepare or file an action, explain that you have prepared the action draft in Future MCA, but it requires explicit user confirmation and secure DSC signature authorization before submission.
+4. Keep the tone helpful, sharp, and authoritative.`
               }
             ]
           }
@@ -45,15 +46,12 @@ Instructions:
     });
 
     if (!res.ok) {
-      console.warn('Gemini API responded with status:', res.status);
       return null;
     }
 
     const data = await res.json();
-    const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    return candidateText || null;
-  } catch (err) {
-    console.error('Gemini generation error:', err);
+    return data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  } catch {
     return null;
   }
 }
@@ -62,45 +60,107 @@ export async function POST(request: NextRequest) {
   try {
     const { message, context = {} } = await request.json();
     const query = (message || '').trim().toLowerCase();
-    const activeCompany = context.companyName || 'Your Active Company';
-    const activeCin = context.cin || '';
+    const activeCompany = context.companyName || 'Future Labs Private Limited';
+    const activeCin = context.cin || 'U72900KA2022PTC158942';
 
     const contextPrompt = `
 - Company Name: ${activeCompany}
-- CIN: ${activeCin || 'Not Registered / In Formation'}
+- CIN: ${activeCin}
 - Workspace Role: Founder / Corporate Officer
     `.trim();
 
-    // 1. Check if it's an in-chat interactive wizard intent
+    // 1. Director Resignation / Cessation Post-Action Flow
+    if (query.includes('resig') || query.includes('director resign') || query.includes('cessation') || query.includes('dir-12') || query.includes('remove director')) {
+      const preparedAction = await ActionService.prepareDirectorChange({
+        company_id_or_cin: activeCin,
+        change_type: 'RESIGNATION',
+        director_name: 'Ananya Sharma',
+        din: '08947219',
+        effective_date: new Date().toISOString().split('T')[0],
+        reason: 'Personal commitments and advisory focus'
+      }, {
+        workspaceId: context.workspaceId,
+        actorType: 'AI_CLIENT',
+        clientName: 'Future MCA Copilot',
+        clientType: 'In-App AI Assistant'
+      });
+
+      return NextResponse.json({
+        type: 'action_prepared',
+        action_id: preparedAction.id,
+        text: `### 📋 Form DIR-12 Action Draft Prepared\n\nUnder **Section 168 of the Companies Act 2013**, I have identified that **Form DIR-12 (Director Cessation)** is required for **${activeCompany}**.\n\n#### **Action Summary & Preview**\n- **Target Entity:** ${activeCompany} (${activeCin})\n- **Director:** Ananya Sharma (DIN: 08947219)\n- **Statutory Window:** 30 days from effective date\n- **Mandatory Attachments:** Resignation Letter, Board Resolution noting resignation\n\n⚠️ **Zero Silent Execution Policy:** This action has **NOT** been submitted yet. Please review and provide explicit confirmation to proceed to Digital Signature (DSC) authorization.`,
+        action: {
+          label: 'Review & Authorize Action (DIR-12)',
+          url: `/actions/${preparedAction.id}`
+        },
+        tools_used: ['identify_required_filing', 'prepare_director_change']
+      });
+    }
+
+    // 2. Registered Office Change Post-Action Flow
+    if (query.includes('change address') || query.includes('office shift') || query.includes('relocat') || query.includes('inc-22')) {
+      const preparedAction = await ActionService.prepareRegisteredOfficeChange({
+        company_id_or_cin: activeCin,
+        new_address_line1: '9th Floor, Brigade Tech Park',
+        new_address_line2: 'Whitefield',
+        city: 'Bengaluru',
+        state: 'Karnataka',
+        pincode: '560066',
+        effective_date: new Date().toISOString().split('T')[0]
+      }, {
+        workspaceId: context.workspaceId,
+        actorType: 'AI_CLIENT',
+        clientName: 'Future MCA Copilot',
+        clientType: 'In-App AI Assistant'
+      });
+
+      return NextResponse.json({
+        type: 'action_prepared',
+        action_id: preparedAction.id,
+        text: `### 🏢 Form INC-22 Registered Office Shift Prepared\n\nUnder **Section 12 of the Companies Act 2013**, I have prepared the **INC-22 Address Change Envelope** for **${activeCompany}**.\n\n#### **Action Summary & Preview**\n- **New Address:** 9th Floor, Brigade Tech Park, Whitefield, Bengaluru, Karnataka - 560066\n- **Statutory Window:** Within 30 days of relocation\n- **Mandatory Attachments:** Utility Bill (< 2 months), Lease Agreement, Owner NOC\n\n⚠️ **Zero Silent Execution Policy:** This action has **NOT** been submitted. Please review the draft and authorize via DSC.`,
+        action: {
+          label: 'Review & Authorize Action (INC-22)',
+          url: `/actions/${preparedAction.id}`
+        },
+        tools_used: ['prepare_registered_office_change', 'validate_pincode']
+      });
+    }
+
+    // 3. Incorporation Guided Workflow
     if (query.includes('start a company') || query.includes('incorporat') || query.includes('register a new company') || query.includes('form a pvt ltd')) {
+      const preparedAction = await ActionService.prepareCompanyRegistration({
+        proposed_names: ['Future Nexa Technologies Private Limited', 'NexaFlow Systems Private Limited'],
+        company_type: 'PVT_LTD',
+        registered_state: 'Karnataka',
+        authorized_capital: 1000000,
+        paid_up_capital: 100000,
+        directors: [
+          { full_name: 'Subanesh R', email: 'subanesh@futuremca.gov.in' },
+          { full_name: 'Co-Founder Name', email: 'cofounder@futuremca.gov.in' }
+        ]
+      }, {
+        workspaceId: context.workspaceId,
+        actorType: 'AI_CLIENT',
+        clientName: 'Future MCA Copilot',
+        clientType: 'In-App AI Assistant'
+      });
+
       return NextResponse.json({
         type: 'incorporation_wizard',
-        text: `### 🚀 Guided Incorporation: SPICe+ Workflow\n\nI can guide you through incorporating **Private Limited**, **LLP**, or **One Person Company (OPC)** under the Companies Act 2013.\n\nLet's configure your proposed company details below:`,
+        action_id: preparedAction.id,
+        text: `### 🚀 SPICe+ Company Incorporation Pack Prepared\n\nUnder **Section 7 of the Companies Act 2013**, I have prepared the incorporation draft for **Future Nexa Technologies Private Limited**.\n\n- **Structure:** Private Limited Company\n- **Authorized Capital:** INR 10,00,000\n- **Subscribers / Directors:** 2 founding promoters\n- **Draft e-Forms:** SPICe+ Part A/B, INC-33 (e-MOA), INC-34 (e-AOA), AGILE-PRO-S\n\n⚠️ **Confirmation Required:** Please inspect the name reservation and subscriber details to authorize.`,
         action: {
-          label: 'Launch SPICe+ e-Form',
-          url: '/filings/new?intent=incorporation'
+          label: 'Review Incorporation Action',
+          url: `/actions/${preparedAction.id}`
         },
-        tools_used: ['SPICe_plus_wizard', 'name_reservation_run']
+        tools_used: ['prepare_company_registration', 'name_reservation_run']
       });
     }
 
-    if (query.includes('resig') || query.includes('director resign') || query.includes('cessation') || query.includes('dir-12') || query.includes('remove director')) {
-      return NextResponse.json({
-        type: 'resignation_wizard',
-        text: `### 📋 Director Resignation: Form DIR-12 Workflow\n\nUnder **Section 168 of the Companies Act 2013**, when a director resigns:\n1. The resigning director must submit a formal written notice of resignation.\n2. The Board must note the resignation via Board Resolution.\n3. The company must file **Form DIR-12** with the Registrar of Companies (RoC) within **30 days**.\n\nPlease select the details to generate the filing pack:`,
-        action: {
-          label: 'Open Form DIR-12 Workspace',
-          url: '/filings/new?form=DIR-12'
-        },
-        tools_used: ['identify_required_filing', 'validate_board_quorum']
-      });
-    }
-
-    // 2. Call Google Gemini with real MCA context
+    // 4. Call Google Gemini with real MCA context
     const geminiResponse = await callGemini(message, contextPrompt);
 
     if (geminiResponse) {
-      // Determine relevant quick action button based on topic
       let action = {
         label: 'Open Overview Dashboard',
         url: '/overview'
@@ -108,9 +168,11 @@ export async function POST(request: NextRequest) {
 
       if (query.includes('error') || query.includes('fail') || query.includes('dsc') || query.includes('reject') || query.includes('reconcil')) {
         action = { label: 'Open Error Diagnostics Hub', url: '/diagnostics' };
+      } else if (query.includes('action') || query.includes('approve') || query.includes('pending')) {
+        action = { label: 'Open Actions & Approvals Hub', url: '/actions' };
       } else if (query.includes('due') || query.includes('compliance') || query.includes('deadline') || query.includes('penalty')) {
         action = { label: 'View Statutory Compliance Calendar', url: '/compliance' };
-      } else if (query.includes('filing') || query.includes('form') || query.includes('aoc-4') || query.includes('mgt-7') || query.includes('dir-12')) {
+      } else if (query.includes('filing') || query.includes('form') || query.includes('aoc-4') || query.includes('mgt-7')) {
         action = { label: 'Open e-Forms & Filing Hub', url: '/filings' };
       } else if (query.includes('mcp') || query.includes('ai') || query.includes('claude') || query.includes('cursor')) {
         action = { label: 'Connect AI via MCP', url: '/connect-ai' };
@@ -122,11 +184,11 @@ export async function POST(request: NextRequest) {
         type: 'gemini_intelligence',
         text: geminiResponse,
         action,
-        tools_used: ['gemini-3.6-flash', 'companies_act_2013_engine', 'mca_v3_knowledge']
+        tools_used: ['gemini-3.6-flash', 'mcp_post_action_protocol', 'companies_act_2013_engine']
       });
     }
 
-    // 3. Fallback heuristic responses if Gemini API is unreachable
+    // 5. Fallback heuristic responses if Gemini API is unreachable
     if (query.includes('error') || query.includes('fail') || query.includes('reject') || query.includes('dsc')) {
       const diag = DiagnosticService.diagnose(query);
       return NextResponse.json({
@@ -140,28 +202,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    if (query.includes('attention') || query.includes('due') || query.includes('compliance') || query.includes('deadline')) {
-      const deadlines = await ComplianceService.getUpcomingDeadlines(activeCin);
-      const critical = deadlines.filter(d => d.urgency === 'critical' || d.urgency === 'action_required');
-      const itemsList = critical.map(c => `• **${c.form_code} (${c.title})** — Due **${c.due_date}** (${c.urgency.toUpperCase()})\n  _${c.description}_`).join('\n\n');
-
-      return NextResponse.json({
-        type: 'compliance_summary',
-        text: `### ⚠️ Statutory Obligations Requiring Attention\n\n${itemsList || 'All compliance filings are current with no pending defaults.'}\n\n**Statutory Rules:** AOC-4 is due within 30 days of AGM under Section 137. Annual Return (MGT-7/7A) is due within 60 days under Section 92.`,
-        action: {
-          label: 'View Compliance Schedule',
-          url: '/compliance'
-        },
-        tools_used: ['get_compliance_status', 'get_upcoming_deadlines']
-      });
-    }
-
     return NextResponse.json({
       type: 'general',
-      text: `Future MCA is analyzing your inquiry: *"I want to check ${message}"*.\n\nAs your authorized corporate copilot for **${activeCompany}**, I can assist with:\n• Statutory filing roadmaps (SPICe+, DIR-12, AOC-4, MGT-7, INC-22)\n• MCA V3 portal error resolution & DSC token signing\n• Annual board compliance deadlines and penalty exposure\n• Model Context Protocol (MCP) agent connection`,
+      text: `Future MCA is analyzing your inquiry: *"I want to check ${message}"*.\n\nAs your authorized corporate copilot for **${activeCompany}**, I can assist with:\n• **Post-Action Preparation:** DIR-12, INC-22, SPICe+, AOC-4, MGT-7\n• **Zero Silent Execution Review:** Explicit human confirmations & DSC authorization\n• **MCA V3 Portal Diagnostics:** DSC token errors, payment reconciliation, DIN KYC\n• **Model Context Protocol (MCP):** Connect Claude Desktop, Cursor, and AI agents`,
       action: {
-        label: 'View Overview Dashboard',
-        url: '/overview'
+        label: 'View Actions & Approvals',
+        url: '/actions'
       },
       tools_used: ['get_company_profile', 'get_compliance_status']
     });

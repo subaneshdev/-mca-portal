@@ -3,9 +3,11 @@ import { ComplianceService } from '@/lib/services/complianceService';
 import { FilingService } from '@/lib/services/filingService';
 import { DiagnosticService } from '@/lib/services/diagnosticService';
 import { KnowledgeService } from '@/lib/services/knowledgeService';
+import { ActionService, ActionContext } from '@/lib/services/actionService';
 
 export interface ToolDefinition {
   name: string;
+  category?: 'LEVEL_1_READ' | 'LEVEL_2_PREPARE' | 'LEVEL_3_EXECUTION';
   description: string;
   inputSchema: {
     type: string;
@@ -15,8 +17,12 @@ export interface ToolDefinition {
 }
 
 export const MCP_TOOLS: ToolDefinition[] = [
+  // ==========================================
+  // LEVEL 1: READ TOOLS (Safe, immediate execution)
+  // ==========================================
   {
     name: 'search_company',
+    category: 'LEVEL_1_READ',
     description: 'Search registered Indian companies by name, CIN, or jurisdiction.',
     inputSchema: {
       type: 'object',
@@ -28,6 +34,7 @@ export const MCP_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'get_company_profile',
+    category: 'LEVEL_1_READ',
     description: 'Retrieve detailed master data for a specific company by its CIN or ID.',
     inputSchema: {
       type: 'object',
@@ -39,6 +46,7 @@ export const MCP_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'get_company_directors',
+    category: 'LEVEL_1_READ',
     description: 'Retrieve the active Board of Directors, DIN numbers, DSC validity, and KYC statuses for a company.',
     inputSchema: {
       type: 'object',
@@ -50,6 +58,7 @@ export const MCP_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'get_compliance_status',
+    category: 'LEVEL_1_READ',
     description: 'Get the complete compliance overview, critical deadlines, and overdue risks for a company.',
     inputSchema: {
       type: 'object',
@@ -61,6 +70,7 @@ export const MCP_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'get_upcoming_deadlines',
+    category: 'LEVEL_1_READ',
     description: 'Get upcoming statutory MCA filing deadlines, per-day penalties, and section references.',
     inputSchema: {
       type: 'object',
@@ -71,6 +81,7 @@ export const MCP_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'get_next_required_action',
+    category: 'LEVEL_1_READ',
     description: 'Identify the immediate highest-priority action item requiring user attention.',
     inputSchema: {
       type: 'object',
@@ -82,6 +93,7 @@ export const MCP_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'identify_required_filing',
+    category: 'LEVEL_1_READ',
     description: 'Understand a natural language corporate event (e.g. "a director resigned", "we changed office") and map it to the exact MCA form and workflow.',
     inputSchema: {
       type: 'object',
@@ -93,6 +105,7 @@ export const MCP_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'get_filing_requirements',
+    category: 'LEVEL_1_READ',
     description: 'Get required documents, prerequisites, and step-by-step checklist for an MCA e-Form.',
     inputSchema: {
       type: 'object',
@@ -103,19 +116,8 @@ export const MCP_TOOLS: ToolDefinition[] = [
     }
   },
   {
-    name: 'validate_filing',
-    description: 'Validate draft filing data against MCA V3 business rules and attachment specifications.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        form_code: { type: 'string', description: 'e.g. DIR-12, AOC-4' },
-        data: { type: 'object', description: 'Form data payload to validate' }
-      },
-      required: ['form_code', 'data']
-    }
-  },
-  {
     name: 'get_application_status',
+    category: 'LEVEL_1_READ',
     description: 'Check the real-time status, SRN, and officer remarks for a filed MCA application.',
     inputSchema: {
       type: 'object',
@@ -127,6 +129,7 @@ export const MCP_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'get_application_timeline',
+    category: 'LEVEL_1_READ',
     description: 'Retrieve the step-by-step journey timeline and future actions for an application.',
     inputSchema: {
       type: 'object',
@@ -138,6 +141,7 @@ export const MCP_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'diagnose_filing_error',
+    category: 'LEVEL_1_READ',
     description: 'Diagnose an MCA portal error code, failure popup, or DSC rejection and get actionable resolution steps.',
     inputSchema: {
       type: 'object',
@@ -149,6 +153,7 @@ export const MCP_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'search_mca_knowledge',
+    category: 'LEVEL_1_READ',
     description: 'Search official MCA guidance, Companies Act 2013 rules, circulars, and FAQs.',
     inputSchema: {
       type: 'object',
@@ -157,15 +162,185 @@ export const MCP_TOOLS: ToolDefinition[] = [
       },
       required: ['query']
     }
+  },
+
+  // ==========================================
+  // LEVEL 2: PREPARE TOOLS (Draft creation only, NEVER submits)
+  // ==========================================
+  {
+    name: 'prepare_company_registration',
+    category: 'LEVEL_2_PREPARE',
+    description: 'Prepare an incorporation workflow for a new Private Limited, LLP, OPC, or Public Company. Creates a draft preview awaiting user review. DOES NOT submit.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        proposed_names: { type: 'array', items: { type: 'string' }, description: '1 to 2 proposed names in order of preference' },
+        company_type: { type: 'string', enum: ['PVT_LTD', 'LLP', 'OPC', 'PUBLIC_LTD'], description: 'Legal entity structure' },
+        registered_state: { type: 'string', description: 'State of proposed registered office' },
+        authorized_capital: { type: 'number', description: 'Proposed authorized capital in INR' },
+        paid_up_capital: { type: 'number', description: 'Proposed paid-up capital in INR' },
+        directors: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              full_name: { type: 'string' },
+              email: { type: 'string' },
+              din: { type: 'string' },
+              pan: { type: 'string' }
+            },
+            required: ['full_name', 'email']
+          },
+          description: 'List of founding directors / subscribers'
+        }
+      },
+      required: ['proposed_names', 'company_type', 'registered_state', 'directors']
+    }
+  },
+  {
+    name: 'prepare_director_change',
+    category: 'LEVEL_2_PREPARE',
+    description: 'Prepare a director appointment or cessation (resignation) in Form DIR-12. Validates statutory requirements, calculates deadlines, and creates an action draft awaiting explicit confirmation. DOES NOT submit.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        company_id_or_cin: { type: 'string', description: 'Company CIN or ID' },
+        change_type: { type: 'string', enum: ['RESIGNATION', 'APPOINTMENT'], description: 'Director resignation or appointment' },
+        director_name: { type: 'string', description: 'Full name of the director' },
+        din: { type: 'string', description: '8-digit Director Identification Number (DIN)' },
+        effective_date: { type: 'string', description: 'Effective date of change (YYYY-MM-DD)' },
+        reason: { type: 'string', description: 'Reason for change / board resolution notes' }
+      },
+      required: ['company_id_or_cin', 'change_type', 'director_name', 'effective_date']
+    }
+  },
+  {
+    name: 'prepare_registered_office_change',
+    category: 'LEVEL_2_PREPARE',
+    description: 'Prepare a registered office address change workflow in Form INC-22. Validates address rules and prerequisites. Creates an action draft awaiting explicit confirmation. DOES NOT submit.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        company_id_or_cin: { type: 'string', description: 'Company CIN or ID' },
+        new_address_line1: { type: 'string', description: 'Street address / premises name' },
+        new_address_line2: { type: 'string', description: 'Area / landmark' },
+        city: { type: 'string', description: 'City' },
+        state: { type: 'string', description: 'State' },
+        pincode: { type: 'string', description: '6-digit Postal PIN Code' },
+        effective_date: { type: 'string', description: 'Effective date of relocation (YYYY-MM-DD)' },
+        is_within_local_limits: { type: 'boolean', description: 'Whether the shift is within the local limits of the same city/town' }
+      },
+      required: ['company_id_or_cin', 'new_address_line1', 'city', 'state', 'pincode', 'effective_date']
+    }
+  },
+  {
+    name: 'prepare_filing',
+    category: 'LEVEL_2_PREPARE',
+    description: 'Prepare a generic statutory MCA e-Form draft (e.g. DIR-12, INC-22, PAS-3, AOC-4, MGT-7). Generates full preview and requirements checklist. DOES NOT submit.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        company_id_or_cin: { type: 'string', description: 'Company CIN or ID' },
+        form_code: { type: 'string', description: 'MCA e-Form code (e.g. DIR-12, INC-22, PAS-3, AOC-4)' },
+        reason: { type: 'string', description: 'Filing reason or corporate event description' },
+        filing_data: { type: 'object', description: 'Optional field payload for the e-Form' }
+      },
+      required: ['company_id_or_cin', 'form_code', 'reason']
+    }
+  },
+  {
+    name: 'prepare_compliance_submission',
+    category: 'LEVEL_2_PREPARE',
+    description: 'Prepare an annual or periodic compliance submission (e.g. AOC-4 Financial Statements, MGT-7 Annual Return, DIR-3 KYC). Creates an action draft awaiting explicit confirmation. DOES NOT submit.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        company_id_or_cin: { type: 'string', description: 'Company CIN or ID' },
+        compliance_type: { type: 'string', enum: ['AOC-4', 'MGT-7', 'DIR-3-KYC', 'DPT-3', 'MSME-1'], description: 'Statutory compliance type' },
+        financial_year: { type: 'string', description: 'e.g. 2025-2026' },
+        agm_date: { type: 'string', description: 'Date of AGM (YYYY-MM-DD)' }
+      },
+      required: ['company_id_or_cin', 'compliance_type', 'financial_year']
+    }
+  },
+
+  // ==========================================
+  // LEVEL 3: LIFECYCLE & EXECUTION TOOLS
+  // ==========================================
+  {
+    name: 'get_action_status',
+    category: 'LEVEL_3_EXECUTION',
+    description: 'Get real-time status, preview, authorization details, and audit history for an MCP Action by its ID.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action_id: { type: 'string', description: 'Action ID (e.g. act_dir_12345)' }
+      },
+      required: ['action_id']
+    }
+  },
+  {
+    name: 'get_action_preview',
+    category: 'LEVEL_3_EXECUTION',
+    description: 'Retrieve a structured human-readable preview of a prepared action for presentation to the user.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action_id: { type: 'string', description: 'Action ID' }
+      },
+      required: ['action_id']
+    }
+  },
+  {
+    name: 'confirm_action',
+    category: 'LEVEL_3_EXECUTION',
+    description: 'Confirm an action draft after the user gives EXPLICIT confirmation. Verifies the confirmation token, checks authorization requirements, and advances status to CONFIRMED or AUTHORIZATION_REQUIRED.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action_id: { type: 'string', description: 'Action ID' },
+        confirmation_token: { type: 'string', description: 'Security confirmation token returned from prepare tool' }
+      },
+      required: ['action_id']
+    }
+  },
+  {
+    name: 'cancel_action',
+    category: 'LEVEL_3_EXECUTION',
+    description: 'Cancel a pending or prepared action.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action_id: { type: 'string', description: 'Action ID' },
+        reason: { type: 'string', description: 'Reason for cancellation' }
+      },
+      required: ['action_id']
+    }
+  },
+  {
+    name: 'execute_action',
+    category: 'LEVEL_3_EXECUTION',
+    description: 'Securely execute a confirmed and authorized action. Validates invariants, prevents duplicate submissions via idempotency, generates official SRN reference, and returns a submission receipt.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action_id: { type: 'string', description: 'Action ID' },
+        idempotency_key: { type: 'string', description: 'Optional unique key to ensure idempotent execution' }
+      },
+      required: ['action_id']
+    }
   }
 ];
 
 export async function executeMcpTool(
   name: string, 
   args: any = {}, 
-  context: { workspaceId?: string; userId?: string } = {}
+  context: ActionContext = {}
 ): Promise<any> {
   switch (name) {
+    // ----------------------------------------------------
+    // LEVEL 1: READ TOOLS
+    // ----------------------------------------------------
     case 'search_company': {
       const companies = context.workspaceId 
         ? await CompanyService.listCompanies(context.workspaceId)
@@ -245,7 +420,8 @@ export async function executeMcpTool(
         explanation: match.explanation,
         recommended_form: match.intent.form_code,
         statutory_section: match.intent.section,
-        deadline_rule: match.intent.deadline_rule
+        deadline_rule: match.intent.deadline_rule,
+        next_step: `Call prepare_director_change or prepare_filing to prepare this workflow for review.`
       };
     }
     case 'get_filing_requirements': {
@@ -258,31 +434,6 @@ export async function executeMcpTool(
         required_info: intent.required_info,
         required_documents: intent.required_documents,
         steps: intent.steps
-      };
-    }
-    case 'validate_filing': {
-      const formCode = (args.form_code || '').toUpperCase();
-      const issues: string[] = [];
-      if (formCode === 'DIR-12') {
-        if (!args.data?.resigning_din && !args.data?.new_din) {
-          issues.push('Director Identification Number (DIN) is mandatory.');
-        }
-        if (!args.data?.effective_date) {
-          issues.push('Effective date of change is required.');
-        }
-      } else if (formCode === 'INC-22') {
-        if (!args.data?.pin_code || args.data.pin_code.length !== 6) {
-          issues.push('Valid 6-digit postal PIN code is required.');
-        }
-        if (!args.data?.utility_bill_date) {
-          issues.push('Utility bill date must be provided (must be within 60 days).');
-        }
-      }
-      return {
-        form_code: formCode,
-        is_valid: issues.length === 0,
-        validation_status: issues.length === 0 ? 'PASSED_PRE_SCRUTINY' : 'FAILED_VALIDATION',
-        issues
       };
     }
     case 'get_application_status': {
@@ -308,6 +459,143 @@ export async function executeMcpTool(
       const docs = await KnowledgeService.searchKnowledge(args.query || '');
       return { query: args.query, results: docs.results, total: docs.results.length };
     }
+
+    // ----------------------------------------------------
+    // LEVEL 2: PREPARE TOOLS
+    // ----------------------------------------------------
+    case 'prepare_company_registration': {
+      const action = await ActionService.prepareCompanyRegistration(args, context);
+      return {
+        action_id: action.id,
+        status: action.status,
+        action_summary: action.preview.action_summary,
+        company: action.preview.company_name,
+        deadline: action.preview.deadline,
+        required_documents: action.preview.required_documents,
+        missing_requirements: action.preview.missing_requirements,
+        preview: action.preview,
+        confirmation_token: action.confirmation_token,
+        confirmation_required: true,
+        security_notice: '⚠️ THIS ACTION HAS NOT BEEN EXECUTED. Show the user the action preview and ask for explicit confirmation before continuing.'
+      };
+    }
+    case 'prepare_director_change': {
+      const action = await ActionService.prepareDirectorChange(args, context);
+      return {
+        action_id: action.id,
+        status: action.status,
+        action_summary: action.preview.action_summary,
+        company: action.preview.company_name,
+        deadline: action.preview.deadline,
+        required_documents: action.preview.required_documents,
+        missing_requirements: action.preview.missing_requirements,
+        preview: action.preview,
+        confirmation_token: action.confirmation_token,
+        confirmation_required: true,
+        security_notice: '⚠️ THIS ACTION HAS NOT BEEN EXECUTED. Show the user the action preview and ask for explicit confirmation before continuing.'
+      };
+    }
+    case 'prepare_registered_office_change': {
+      const action = await ActionService.prepareRegisteredOfficeChange(args, context);
+      return {
+        action_id: action.id,
+        status: action.status,
+        action_summary: action.preview.action_summary,
+        company: action.preview.company_name,
+        deadline: action.preview.deadline,
+        required_documents: action.preview.required_documents,
+        missing_requirements: action.preview.missing_requirements,
+        preview: action.preview,
+        confirmation_token: action.confirmation_token,
+        confirmation_required: true,
+        security_notice: '⚠️ THIS ACTION HAS NOT BEEN EXECUTED. Show the user the action preview and ask for explicit confirmation before continuing.'
+      };
+    }
+    case 'prepare_filing': {
+      const action = await ActionService.prepareFiling(args, context);
+      return {
+        action_id: action.id,
+        status: action.status,
+        action_summary: action.preview.action_summary,
+        company: action.preview.company_name,
+        deadline: action.preview.deadline,
+        required_documents: action.preview.required_documents,
+        missing_requirements: action.preview.missing_requirements,
+        preview: action.preview,
+        confirmation_token: action.confirmation_token,
+        confirmation_required: true,
+        security_notice: '⚠️ THIS ACTION HAS NOT BEEN EXECUTED. Show the user the action preview and ask for explicit confirmation before continuing.'
+      };
+    }
+    case 'prepare_compliance_submission': {
+      const action = await ActionService.prepareComplianceSubmission(args, context);
+      return {
+        action_id: action.id,
+        status: action.status,
+        action_summary: action.preview.action_summary,
+        company: action.preview.company_name,
+        deadline: action.preview.deadline,
+        required_documents: action.preview.required_documents,
+        missing_requirements: action.preview.missing_requirements,
+        preview: action.preview,
+        confirmation_token: action.confirmation_token,
+        confirmation_required: true,
+        security_notice: '⚠️ THIS ACTION HAS NOT BEEN EXECUTED. Show the user the action preview and ask for explicit confirmation before continuing.'
+      };
+    }
+
+    // ----------------------------------------------------
+    // LEVEL 3: EXECUTION & LIFECYCLE TOOLS
+    // ----------------------------------------------------
+    case 'get_action_status': {
+      const action = await ActionService.getAction(args.action_id);
+      if (!action) return { error: `Action "${args.action_id}" not found.` };
+      const auditLogs = await ActionService.getActionAuditLogs(action.id);
+      return { action, audit_trail: auditLogs };
+    }
+    case 'get_action_preview': {
+      const action = await ActionService.getAction(args.action_id);
+      if (!action) return { error: `Action "${args.action_id}" not found.` };
+      return {
+        action_id: action.id,
+        status: action.status,
+        preview: action.preview,
+        authorization_required: action.authorization_required,
+        authorization_status: action.authorization_status
+      };
+    }
+    case 'confirm_action': {
+      const result = await ActionService.confirmAction(args.action_id, args.confirmation_token, context);
+      return {
+        action_id: result.action.id,
+        status: result.status,
+        authorization_required: result.authorization_required,
+        authorization_url: result.authorization_url,
+        message: result.message,
+        next_step: result.authorization_required 
+          ? `Tell user: Please complete secure authorization/DSC signature at: ${result.authorization_url}`
+          : `Action confirmed. You may now call execute_action when ready.`
+      };
+    }
+    case 'cancel_action': {
+      const action = await ActionService.cancelAction(args.action_id, args.reason, context);
+      return {
+        action_id: action.id,
+        status: action.status,
+        message: 'Action was successfully cancelled.'
+      };
+    }
+    case 'execute_action': {
+      const execution = await ActionService.executeAction(args.action_id, args.idempotency_key, context);
+      return {
+        status: execution.status,
+        reference_number: execution.reference_number,
+        submitted_at: execution.submitted_at,
+        receipt: execution.receipt,
+        disclaimer: 'DEMO EXECUTION MODE: Internal Future MCA workflow registered and validated.'
+      };
+    }
+
     default:
       throw new Error(`Tool "${name}" is not implemented.`);
   }

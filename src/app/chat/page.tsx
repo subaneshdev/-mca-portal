@@ -20,7 +20,9 @@ import {
   ChevronDown, 
   RefreshCw, 
   ShieldAlert, 
+  ShieldCheck,
   FileText, 
+
   Briefcase, 
   HelpCircle, 
   Layers, 
@@ -467,6 +469,33 @@ function ChatContent() {
                     <div className="whitespace-pre-wrap space-y-2">
                       {msg.text}
                     </div>
+
+                    {/* Tools Used Chips */}
+                    {msg.toolsUsed && msg.toolsUsed.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-white/10 mt-2">
+                        <span className="text-[10px] font-mono text-neutral-400">MCP Tools:</span>
+                        {msg.toolsUsed.map((tool, tIdx) => (
+                          <span key={tIdx} className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                            {tool}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Action CTA Button */}
+                    {msg.action && (
+                      <div className="pt-3">
+                        <Link
+                          href={msg.action.url}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-all"
+                        >
+                          <ShieldCheck className="w-4 h-4 text-blue-200" />
+                          <span>{msg.action.label}</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
+                    )}
+
 
                     {/* Interactive In-Chat Wizard: DIRECTOR RESIGNATION */}
                     {msg.type === 'resignation_wizard' && (
